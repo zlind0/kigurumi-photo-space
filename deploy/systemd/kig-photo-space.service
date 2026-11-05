@@ -1,0 +1,24 @@
+[Unit]
+Description=Kig Photo Space
+After=network.target
+
+[Service]
+Type=simple
+User=kig
+Group=kig
+WorkingDirectory=/opt/kig-photo-space
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/kig-photo-space.env
+ExecStart=/usr/bin/node --max-old-space-size=256 dist/server/index.js
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/kig-photo-space
+MemoryMax=512M
+CPUQuota=80%
+
+[Install]
+WantedBy=multi-user.target
