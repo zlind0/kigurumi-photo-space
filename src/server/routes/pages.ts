@@ -17,6 +17,7 @@ import {
   requireVisibleAlbum,
 } from '../services/albums.js';
 import { listPhotos, photoToDTO } from '../services/photos.js';
+import { listPeople, listPeopleForAlbum, personToDTO } from '../services/people.js';
 import { diskInfo } from '../services/storage.js';
 import { renderHomePage } from '../templates/home.js';
 import { renderAlbumPage } from '../templates/album.js';
@@ -110,6 +111,7 @@ export function registerPageRoutes(
         renderHomePage({
           albums: result.albums,
           nextCursor: result.nextCursor,
+          people: listPeople(db).map(personToDTO),
           role: request.role,
           authenticated: Boolean(request.auth),
           manifest,
@@ -122,6 +124,7 @@ export function registerPageRoutes(
     const album = requireVisibleAlbum(getAlbumByDir(db, albumDir), request.role);
     const sessionId = request.auth?.session.id ?? null;
     const photos = listPhotos(db, album, request.role, undefined, 60, sessionId);
+    const albumPeople = listPeopleForAlbum(db, album.id).map(personToDTO);
     const permissions: PermissionsDTO = {
       canUpload: canUpload(request.role),
       canCreateAlbum: canCreateAlbum(request.role),
@@ -142,11 +145,13 @@ export function registerPageRoutes(
             createdAt: album.created_at,
             photoCount: countVisiblePhotos(db, album.id, request.role),
             cover: null,
+            people: albumPeople,
             canUpload: permissions.canUpload,
             canManage: permissions.canManageAlbum,
           },
           photos: photos.items,
           nextCursor: photos.nextCursor,
+          allPeople: listPeople(db).map(personToDTO),
           permissions,
           role: request.role,
           authenticated: Boolean(request.auth),

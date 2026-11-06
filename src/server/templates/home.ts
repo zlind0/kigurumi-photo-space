@@ -1,13 +1,39 @@
-import type { AlbumDTO, Role } from '../../shared/types.js';
+import type { AlbumDTO, PersonDTO, Role } from '../../shared/types.js';
 import { escapeHtml } from '../http/errors.js';
 import { renderLayout, type AssetManifest } from './layout.js';
 
 export interface HomePageOptions {
   albums: AlbumDTO[];
   nextCursor: string | null;
+  people: PersonDTO[];
   role: Role;
   authenticated: boolean;
   manifest: AssetManifest;
+}
+
+function personButton(person: PersonDTO): string {
+  return `<li class="person-item">
+  <button class="person-button is-selected" type="button" data-action="filter-person" data-person-id="${person.id}" data-accent="${escapeHtml(person.accent)}" aria-pressed="true" title="${escapeHtml(person.name)}">
+    <span class="person-avatar" style="--person-accent:${escapeHtml(person.accent)}">
+      <img src="${escapeHtml(person.avatarUrl)}" alt="${escapeHtml(person.name)}" width="200" height="200" loading="lazy" decoding="async">
+    </span>
+    <span class="person-name">${escapeHtml(person.name)}</span>
+  </button>
+</li>`;
+}
+
+function peopleStrip(people: PersonDTO[]): string {
+  if (people.length === 0) return '';
+  return `<section class="people-strip" aria-label="按人物筛选相册">
+  <ul class="people-grid" id="people-grid">${people.map(personButton).join('')}</ul>
+  <button class="people-select-all" type="button" data-action="select-all-people" aria-label="全选人物" title="全选人物">
+    <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      <path d="M3 9.5l4.5 4.5L16 5.5" />
+      <path d="M9 15.5l4.5 4.5L22 11.5" />
+      <path d="M15 21.5l4.5 4.5L28 17.5" />
+    </svg>
+  </button>
+</section>`;
 }
 
 function albumCard(album: AlbumDTO, index: number, role: Role): string {
@@ -22,7 +48,8 @@ function albumCard(album: AlbumDTO, index: number, role: Role): string {
     album.visibility === 'private' && role !== 'public'
       ? '<span class="badge private">私密</span>'
       : '';
-  return `<li class="album-item">
+  const personIds = album.people.map((person) => person.id).join(',');
+  return `<li class="album-item" data-people="${personIds}">
   <a class="album-card" href="/a/${encodeURIComponent(album.dir)}" data-album-id="${album.id}">
     <span class="album-stack">
       <span class="album-print album-print-back" aria-hidden="true">${backLayer}</span>
@@ -64,13 +91,13 @@ export function renderHomePage(options: HomePageOptions): string {
   ${canCreate ? '<button class="button primary" type="button" data-action="new-album">新建第一个相册</button>' : ''}
 </div>`
       : '';
-  const body = `<section class="page-heading">
-  <div>
-    <h1>相册</h1>
-  </div>
-</section>
+  const body = `${peopleStrip(options.people)}
 ${empty}
 <ul class="album-grid" id="album-grid">${cards}${newCard}</ul>
+<div class="empty-state people-empty" id="people-empty" hidden>
+  <h2>没有符合条件的相册</h2>
+  <p>换一个或减少选中的人物试试。</p>
+</div>
 ${options.nextCursor ? `<div class="load-more"><button class="button" type="button" data-action="load-more-albums" data-cursor="${escapeHtml(options.nextCursor)}">加载更多相册</button></div>` : ''}
 <dialog id="new-album-dialog" class="dialog" aria-labelledby="new-album-title">
   <form id="new-album-form" method="dialog" novalidate>

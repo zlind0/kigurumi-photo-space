@@ -32,6 +32,17 @@ export interface CoverDTO {
   isHdr: boolean;
 }
 
+export interface PersonDTO {
+  id: number;
+  name: string;
+  accent: string;
+  hue: number;
+  saturation: number;
+  lightness: number;
+  avatarUrl: string;
+  createdAt: number;
+}
+
 export interface AlbumDTO {
   id: number;
   name: string;
@@ -40,6 +51,7 @@ export interface AlbumDTO {
   createdAt: number;
   photoCount: number;
   cover: CoverDTO | null;
+  people: PersonDTO[];
   canUpload: boolean;
   canManage: boolean;
 }

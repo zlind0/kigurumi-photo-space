@@ -53,6 +53,14 @@ export function coverThumbPath(config: Config, albumDir: string): string {
   return join(albumPath(config, albumDir), 'cover.thumb.avif');
 }
 
+export function peopleDir(config: Config): string {
+  return join(config.dataDir, 'people');
+}
+
+export function personAvatarPath(config: Config, md5: string): string {
+  return join(peopleDir(config), `${md5}.avif`);
+}
+
 export function tmpDir(config: Config): string {
   return join(config.dataDir, 'tmp');
 }
@@ -65,6 +73,7 @@ export async function ensureDataDirs(config: Config): Promise<void> {
   await mkdir(config.dataDir, { recursive: true, mode: 0o750 });
   await mkdir(tmpDir(config), { recursive: true, mode: 0o750 });
   await mkdir(trashDir(config), { recursive: true, mode: 0o750 });
+  await mkdir(peopleDir(config), { recursive: true, mode: 0o750 });
   await mkdir(join(config.dataDir, 'backups'), { recursive: true, mode: 0o750 });
 }
 

@@ -1,12 +1,13 @@
 import type { Config } from '../config.js';
 import type { Database } from '../db/index.js';
-import type { AlbumDTO, CoverDTO, Role, Visibility } from '../../shared/types.js';
+import type { AlbumDTO, CoverDTO, PersonDTO, Role, Visibility } from '../../shared/types.js';
 import { canCreateAlbum, canManageAlbum, canUpload, canViewAlbum } from '../auth/permissions.js';
 import { AppError, badRequest, conflict, forbidden, notFound } from '../http/errors.js';
 import { decodeCursor, encodeCursor } from '../../shared/cursor.js';
 import { deleteAlbumToTrash, ensureAlbumDirs } from './storage.js';
 import { audit } from './audit.js';
 import { invalidateAlbum } from './album-cache.js';
+import { listPeopleForAlbums, personToDTO } from './people.js';
 
 export interface AlbumRow {
   id: number;
@@ -61,6 +62,7 @@ const RESERVED_DIRS = new Set([
   'data',
   'assets',
   'wasm',
+  'people',
 ]);
 
 export interface SanitizedAlbumName {
@@ -96,6 +98,7 @@ export function albumToDTO(
   cover: PhotoRow | null,
   photoCount: number,
   role: Role,
+  people: PersonDTO[] = [],
 ): AlbumDTO {
   const dir = encodeURIComponent(album.dir_name);
   const coverDTO: CoverDTO | null = cover
@@ -116,6 +119,7 @@ export function albumToDTO(
     createdAt: album.created_at,
     photoCount,
     cover: coverDTO,
+    people,
     canUpload: canUpload(role),
     canManage: canManageAlbum(role),
   };
@@ -165,11 +169,20 @@ export function listAlbums(
   role: Role,
   cursorRaw: string | undefined,
   limit: number,
+  personIds: number[] = [],
 ): AlbumListResult {
   const cursor = decodeCursor(cursorRaw);
   const params: unknown[] = [];
   let where = 'a.deleted_at IS NULL';
   if (role === 'public') where += " AND a.visibility = 'public'";
+  if (personIds.length > 0) {
+    const placeholders = personIds.map(() => '?').join(',');
+    where += ` AND EXISTS (
+      SELECT 1 FROM album_people ap
+      WHERE ap.album_id = a.id AND ap.person_id IN (${placeholders})
+    )`;
+    params.push(...personIds);
+  }
   if (cursor) {
     where += ' AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))';
     params.push(cursor.createdAt, cursor.createdAt, cursor.id);
@@ -200,8 +213,18 @@ export function listAlbums(
       covers.set(photo.id, photo);
     }
   }
+  const peopleByAlbum = listPeopleForAlbums(
+    db,
+    page.map((row) => row.id),
+  );
   const albums = page.map((row) =>
-    albumToDTO(row, row.cover_id ? (covers.get(row.cover_id) ?? null) : null, row.photo_count, role),
+    albumToDTO(
+      row,
+      row.cover_id ? (covers.get(row.cover_id) ?? null) : null,
+      row.photo_count,
+      role,
+      (peopleByAlbum.get(row.id) ?? []).map(personToDTO),
+    ),
   );
   const last = page[page.length - 1];
   return {

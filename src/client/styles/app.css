@@ -1193,7 +1193,280 @@ progress {
   color: #fff;
 }
 
+/* People */
+.people-strip {
+  position: relative;
+  margin: 0 auto 2rem;
+  padding: 0 3.5rem;
+}
+
+.people-grid {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: clamp(0.5rem, 1.2vw, 1rem);
+  max-width: 1120px;
+}
+
+.person-item {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.person-button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  min-width: 0;
+  transition: opacity 180ms ease, filter 180ms ease, transform 180ms ease;
+}
+
+.person-avatar {
+  display: block;
+  width: clamp(48px, 7.2vw, 100px);
+  height: clamp(48px, 7.2vw, 100px);
+  padding: 3px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--person-accent) 32%, transparent);
+  transition: box-shadow 200ms ease, background 200ms ease, transform 200ms ease;
+}
+
+.person-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.person-button.is-selected .person-avatar {
+  background: var(--person-accent);
+  box-shadow:
+    0 0 0 2px var(--person-accent),
+    0 0 16px color-mix(in srgb, var(--person-accent) 70%, transparent),
+    0 0 34px color-mix(in srgb, var(--person-accent) 38%, transparent);
+}
+
+.person-button:not(.is-selected) {
+  opacity: 0.42;
+  filter: saturate(0.55) brightness(0.72);
+}
+
+.person-button:not(.is-selected):hover {
+  opacity: 0.72;
+  filter: saturate(0.8) brightness(0.9);
+}
+
+.person-button:hover .person-avatar {
+  transform: translateY(-2px);
+}
+
+.person-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.person-button.is-selected .person-name {
+  color: var(--text);
+}
+
+.people-select-all {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.people-select-all:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--bg-soft);
+}
+
+.people-select-all svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.people-empty {
+  margin-top: 1rem;
+}
+
+.album-title-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.album-title-row h1 {
+  margin-bottom: 0;
+}
+
+.album-people {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.album-person {
+  display: inline-block;
+  flex: none;
+  width: 2.2rem;
+  height: 2.2rem;
+  padding: 2px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--person-accent) 45%, transparent);
+}
+
+.album-person img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.people-picker {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 0.5rem;
+  max-height: 50vh;
+  overflow: auto;
+}
+
+.people-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.people-picker-item input {
+  accent-color: var(--accent);
+}
+
+.people-picker-item .album-person {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.admin-person-avatar {
+  display: inline-block;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 2px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--person-accent) 45%, transparent);
+}
+
+.admin-person-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.accent-swatch {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.person-dialog {
+  width: min(92vw, 30rem);
+}
+
+.person-avatar-preview {
+  width: 6rem;
+  height: 6rem;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--border);
+}
+
+.person-avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.accent-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.accent-preview {
+  height: 2.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.accent-field {
+  margin: 0;
+}
+
+.accent-field input[type="range"] {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--accent);
+}
+
 @media (max-width: 900px) {
+  .people-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
   .photo-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 3px;
@@ -1210,6 +1483,19 @@ progress {
   .site-nav {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .people-strip {
+    padding: 0 2.8rem 0 0;
+  }
+
+  .people-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .person-name {
+    font-size: 0.7rem;
   }
 
   .album-grid {

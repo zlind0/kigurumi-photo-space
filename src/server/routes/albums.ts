@@ -18,6 +18,7 @@ import {
   updateAlbumVisibility,
 } from '../services/albums.js';
 import { listFeatured, listPhotos, photoToDTO } from '../services/photos.js';
+import { listPeopleForAlbum, personToDTO } from '../services/people.js';
 import { SlidingWindowLimiter } from '../http/rate-limit.js';
 
 function parseId(raw: string): number {
@@ -30,8 +31,18 @@ export function registerAlbumRoutes(app: FastifyInstance, db: Database, config: 
   const createRate = new SlidingWindowLimiter(10, 3_600_000);
 
   app.get('/api/albums', async (request, reply) => {
-    const query = request.query as { cursor?: string; limit?: string };
-    const result = listAlbums(db, request.role, query.cursor, clampLimit(query.limit, 50, 100));
+    const query = request.query as { cursor?: string; limit?: string; people?: string };
+    const personIds = (query.people ?? '')
+      .split(',')
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isSafeInteger(value) && value > 0);
+    const result = listAlbums(
+      db,
+      request.role,
+      query.cursor,
+      clampLimit(query.limit, 50, 100),
+      Array.from(new Set(personIds)),
+    );
     reply.header('cache-control', 'private, no-store');
     return result satisfies AlbumListResponse;
   });
@@ -67,6 +78,7 @@ export function registerAlbumRoutes(app: FastifyInstance, db: Database, config: 
       photoToDTO(photo, album, request.role, sessionId),
     );
     const photos = listPhotos(db, album, request.role, undefined, 60, sessionId);
+    const people = listPeopleForAlbum(db, album.id).map(personToDTO);
     const permissions: PermissionsDTO = {
       canUpload: canUpload(request.role),
       canCreateAlbum: canCreateAlbum(request.role),
@@ -76,7 +88,7 @@ export function registerAlbumRoutes(app: FastifyInstance, db: Database, config: 
     };
     reply.header('cache-control', 'private, no-store');
     return {
-      album: albumToDTO(album, cover, countVisiblePhotos(db, album.id, request.role), request.role),
+      album: albumToDTO(album, cover, countVisiblePhotos(db, album.id, request.role), request.role, people),
       cover: cover ? photoToDTO(cover, album, request.role, sessionId) : null,
       featured,
       photos,
@@ -104,7 +116,15 @@ export function registerAlbumRoutes(app: FastifyInstance, db: Database, config: 
       userAgent: request.headers['user-agent'] ?? null,
     });
     reply.header('cache-control', 'private, no-store');
-    return { album: albumToDTO(updated, getCoverPhoto(db, updated.id, request.role), countVisiblePhotos(db, updated.id, request.role), request.role) };
+    return {
+      album: albumToDTO(
+        updated,
+        getCoverPhoto(db, updated.id, request.role),
+        countVisiblePhotos(db, updated.id, request.role),
+        request.role,
+        listPeopleForAlbum(db, updated.id).map(personToDTO),
+      ),
+    };
   });
 
   app.delete('/api/albums/:id', async (request, reply) => {

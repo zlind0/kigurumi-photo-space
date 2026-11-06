@@ -13,6 +13,7 @@ import { registerAlbumRoutes } from './routes/albums.js';
 import { registerPhotoRoutes } from './routes/photos.js';
 import { registerMediaRoutes } from './routes/media.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerPeopleRoutes } from './routes/people.js';
 import { registerPageRoutes } from './routes/pages.js';
 import { AssetManifest } from './templates/layout.js';
 import { cleanupSessions } from './auth/session.js';
@@ -99,6 +100,7 @@ export async function buildApp(
   registerPhotoRoutes(app, db, config);
   registerMediaRoutes(app, db, config);
   registerAdminRoutes(app, db, config);
+  registerPeopleRoutes(app, db, config);
   registerPageRoutes(app, db, config, manifest);
 
   app.setNotFoundHandler((request, reply) => {

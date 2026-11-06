@@ -126,11 +126,13 @@ async function loadMoreAlbums(button: HTMLButtonElement): Promise<void> {
   const grid = document.querySelector<HTMLUListElement>('#album-grid');
   if (!grid) return;
   const cursor = button.dataset.cursor;
+  const people = button.dataset.people;
   button.disabled = true;
   try {
-    const result = await api<AlbumListResponse>(
-      `/api/albums?limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
-    );
+    const params = new URLSearchParams({ limit: '50' });
+    if (cursor) params.set('cursor', cursor);
+    if (people) params.set('people', people);
+    const result = await api<AlbumListResponse>(`/api/albums?${params.toString()}`);
     const newCard = grid.querySelector('.album-new')?.closest('li') ?? null;
     for (const album of result.albums) {
       grid.insertBefore(albumCard(album, 1), newCard);

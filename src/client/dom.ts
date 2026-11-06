@@ -146,5 +146,8 @@ export function albumCard(album: AlbumDTO, index: number): HTMLLIElement {
       meta,
     ],
   );
-  return el('li', { className: 'album-item' }, [link]);
+  return el('li', {
+    className: 'album-item',
+    'data-people': album.people.map((person) => person.id).join(','),
+  }, [link]);
 }
