@@ -692,13 +692,19 @@ p {
 }
 
 .photo-grid {
+  --photo-gap: 4px;
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 200px));
+  /* Always keep at least 4 thumbnails per row: the minimum track size is capped
+     at a quarter of the available width, so four columns fit at any viewport. */
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(180px, calc((100% - 3 * var(--photo-gap)) / 4)), 1fr)
+  );
   justify-content: center;
-  gap: 4px;
+  gap: var(--photo-gap);
 }
 
 .photo-item {
@@ -1847,7 +1853,7 @@ progress {
 
 @media (max-width: 900px) {
   .photo-grid {
-    gap: 3px;
+    --photo-gap: 3px;
   }
 }
 
@@ -1893,7 +1899,7 @@ progress {
   }
 
   .photo-grid {
-    gap: 2px;
+    --photo-gap: 2px;
   }
 
   .section-heading h2 {
