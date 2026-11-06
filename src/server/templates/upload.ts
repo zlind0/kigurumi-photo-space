@@ -20,7 +20,6 @@ export function renderUploadPage(options: UploadPageOptions): string {
   const body = `<section class="page-heading">
   <div>
     <h1>上传照片</h1>
-    <p class="muted">照片在你的浏览器里转码为 AVIF，原图不会上传。HDR 照片会保留为 10-bit HDR AVIF。</p>
   </div>
 </section>
 <section class="upload-panel" id="upload-app" data-selected-album="${options.selectedAlbumId ?? ''}">
@@ -36,7 +35,7 @@ export function renderUploadPage(options: UploadPageOptions): string {
   </div>
   <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="拖拽照片或文件夹到这里，或点击选择">
     <p class="drop-title">把照片或整个文件夹拖到这里</p>
-    <p class="muted">支持 JPEG、PNG、WebP、HEIC/HEIF、AVIF。单文件最大 100MB，最大 80MP。</p>
+    <p class="muted">支持 JPEG、PNG、WebP、HEIC/HEIF、AVIF。单文件最大 100MB，最大 100MP。</p>
     <div class="drop-actions">
       <button class="button primary" type="button" data-action="pick-files">选择照片</button>
       <button class="button" type="button" data-action="pick-folder">选择文件夹</button>

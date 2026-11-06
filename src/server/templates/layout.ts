@@ -117,8 +117,7 @@ ${css}
 <a class="skip-link" href="#main">跳到主要内容</a>
 <header class="site-header">
   <a class="brand" href="/" aria-label="Kig Photo Space 首页">
-    <span class="brand-mark" aria-hidden="true"></span>
-    <span class="brand-text">Kig Photo Space</span>
+    <span class="brand-text">喵喵喵</span>
   </a>
   <nav class="site-nav" aria-label="主导航">${nav(options)}</nav>
 </header>
@@ -126,7 +125,7 @@ ${css}
 ${options.body}
 </main>
 <footer class="site-footer">
-  <p>照片在浏览器本地转码为 AVIF，服务器只负责存储。</p>
+  <p></p>
 </footer>
 <dialog id="login-dialog" class="dialog login-dialog" aria-labelledby="login-title">
   <form id="login-form" method="dialog" novalidate>

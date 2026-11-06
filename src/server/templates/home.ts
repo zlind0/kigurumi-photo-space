@@ -67,7 +67,6 @@ export function renderHomePage(options: HomePageOptions): string {
   const body = `<section class="page-heading">
   <div>
     <h1>相册</h1>
-    <p class="muted">按创建时间倒序排列。公开照片无需登录即可浏览。</p>
   </div>
 </section>
 ${empty}
