@@ -48,8 +48,8 @@ export function photoCard(photo: PhotoDTO): HTMLLIElement {
   const img = el('img', {
     src: photo.thumbUrl,
     alt: photo.originalName ?? '照片',
-    width: 600,
-    height: 600,
+    width: 400,
+    height: 400,
     loading: 'lazy',
     decoding: 'async',
   });
@@ -138,8 +138,8 @@ export function albumCard(album: AlbumDTO, index: number): HTMLLIElement {
     ? el('img', {
         src: album.cover.thumbUrl,
         alt: `${album.name} 的封面`,
-        width: 600,
-        height: 600,
+        width: 400,
+        height: 400,
         ...(index === 0
           ? { fetchpriority: 'high' }
           : { loading: 'lazy', decoding: 'async' }),

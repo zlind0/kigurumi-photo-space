@@ -1,6 +1,6 @@
 import '../styles/app.css';
 import type { AlbumDTO, PhotoDTO, UploadResponse } from '../../shared/types.js';
-import { ApiError, toast } from '../api.js';
+import { api, ApiError, toast } from '../api.js';
 import { setupCommon } from '../common.js';
 import { el, photoCard } from '../dom.js';
 import type { ProcessOptions, ResultMessage, WorkerMessage } from './types.js';
@@ -23,6 +23,11 @@ interface QueueItem {
   progressNode: HTMLProgressElement;
   cancelButton: HTMLButtonElement;
   retryButton: HTMLButtonElement;
+}
+
+/** 服务端会把 originalName 截断到 255 个字符，客户端去重时保持一致。 */
+function dedupName(file: File): string {
+  return file.name.slice(0, 255);
 }
 
 function isImageFile(file: File): boolean {
@@ -132,10 +137,27 @@ function setupUpload(): void {
   let nextId = 1;
   let processing = false;
   let completed = 0;
+  let existingNames = new Set<string>();
+  let namesAlbumId: number | null = null;
+  let namesToken = 0;
 
   const albumId = (): number | null => {
     const value = Number(albumSelect.value);
     return Number.isSafeInteger(value) && value > 0 ? value : null;
+  };
+
+  const loadExistingNames = async (id: number): Promise<void> => {
+    const token = ++namesToken;
+    try {
+      const result = await api<{ names: string[] }>(`/api/albums/${id}/photo-names`);
+      if (token !== namesToken) return;
+      existingNames = new Set(result.names);
+      namesAlbumId = id;
+    } catch {
+      if (token !== namesToken) return;
+      existingNames = new Set();
+      namesAlbumId = id;
+    }
   };
 
   const updateOverall = () => {
@@ -191,18 +213,31 @@ function setupUpload(): void {
     item.stageNode.textContent = result.warnings.length ? result.warnings.join('；') : '编码完成';
     setStatus(item, 'uploading', '上传中');
     item.progressNode.value = 0;
-    try {
-      const response = await uploadPhoto(id, fullBlob, thumbBlob, result.meta, (fraction) => {
-        item.progressNode.value = Math.round(fraction * 100);
-      });
-      item.progressNode.value = 100;
-      setStatus(item, 'done', response.deduped ? '已存在' : '已上传');
-      item.stageNode.textContent = `${result.width}×${result.height} · ${result.bitDepth}-bit${result.isHdr ? ' HDR' : ''} · ${formatSize(fullSize)}`;
-      addResult(response.photo);
-    } catch (error) {
-      setStatus(item, 'error', error instanceof ApiError ? error.message : '上传失败');
-      item.stageNode.textContent = '可重试';
+    const maxAttempts = 3;
+    let lastError: unknown = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if ((item.status as string) === 'cancelled') return;
+      try {
+        const response = await uploadPhoto(id, fullBlob, thumbBlob, result.meta, (fraction) => {
+          item.progressNode.value = Math.round(fraction * 100);
+        });
+        item.progressNode.value = 100;
+        setStatus(item, 'done', response.deduped ? '已存在' : '已上传');
+        item.stageNode.textContent = `${result.width}×${result.height} · ${result.bitDepth}-bit${result.isHdr ? ' HDR' : ''} · ${formatSize(fullSize)}`;
+        if (namesAlbumId === id) existingNames.add(dedupName(item.file));
+        if (!response.deduped) addResult(response.photo);
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxAttempts) {
+          item.progressNode.value = 0;
+          item.stageNode.textContent = `上传失败，正在自动重试（${attempt}/${maxAttempts - 1}）`;
+          await new Promise((resolve) => window.setTimeout(resolve, 800 * attempt));
+        }
+      }
     }
+    setStatus(item, 'error', lastError instanceof ApiError ? lastError.message : '上传失败');
+    item.stageNode.textContent = '可重试';
   };
 
   const pump = async (): Promise<void> => {
@@ -263,16 +298,32 @@ function setupUpload(): void {
     return item;
   };
 
-  const addFiles = (files: File[]): void => {
-    if (!albumId()) {
+  const addFiles = async (files: File[]): Promise<void> => {
+    const id = albumId();
+    if (!id) {
       toast('请先选择目标相册', 'error');
       return;
     }
+    if (namesAlbumId !== id) await loadExistingNames(id);
     const accepted = files.filter(isImageFile);
     const tooLarge = accepted.filter((file) => file.size > MAX_FILE_BYTES);
-    const usable = accepted.filter((file) => file.size <= MAX_FILE_BYTES);
+    const withinSize = accepted.filter((file) => file.size <= MAX_FILE_BYTES);
+    const seen = new Set<string>();
+    const duplicates: File[] = [];
+    const usable = withinSize.filter((file) => {
+      const name = dedupName(file);
+      if (existingNames.has(name) || seen.has(name)) {
+        duplicates.push(file);
+        return false;
+      }
+      seen.add(name);
+      return true;
+    });
     if (tooLarge.length) {
       toast(`${tooLarge.length} 个文件超过 100MB，已跳过`, 'error');
+    }
+    if (duplicates.length) {
+      toast(`${duplicates.length} 个同名文件已跳过`);
     }
     if (usable.length === 0) {
       if (accepted.length === 0) toast('没有找到支持的照片', 'error');
@@ -345,11 +396,11 @@ function setupUpload(): void {
   });
 
   fileInput.addEventListener('change', () => {
-    addFiles(Array.from(fileInput.files ?? []));
+    void addFiles(Array.from(fileInput.files ?? []));
     fileInput.value = '';
   });
   folderInput.addEventListener('change', () => {
-    addFiles(Array.from(folderInput.files ?? []));
+    void addFiles(Array.from(folderInput.files ?? []));
     folderInput.value = '';
   });
 
@@ -372,13 +423,20 @@ function setupUpload(): void {
     option.textContent = album.name;
     albumSelect.append(option);
     albumSelect.value = String(album.id);
+    void loadExistingNames(album.id);
     toast(`已创建相册「${album.name}」`);
   });
 
   albumSelect.addEventListener('change', () => {
-    if (albumSelect.value) toast('已选择相册');
+    const id = albumId();
+    if (id) {
+      void loadExistingNames(id);
+      toast('已选择相册');
+    }
   });
 
+  const initialAlbumId = albumId();
+  if (initialAlbumId) void loadExistingNames(initialAlbumId);
 }
 
 setupCommon();

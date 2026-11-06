@@ -166,6 +166,15 @@ describe('API integration', () => {
     expect(result.body.photo.id).toBe(coverPhotoId);
   });
 
+  it('deduplicates by original filename in the same album', async () => {
+    const result = await uploadPhoto(adminCookie, 'avatar.avif', 'thumb.avif', {
+      originalName: 'sdr.avif',
+    });
+    expect(result.statusCode).toBe(200);
+    expect(result.body.deduped).toBe(true);
+    expect(result.body.photo.id).toBe(coverPhotoId);
+  });
+
   it('rejects a thumbnail with the wrong size', async () => {
     const result = await uploadPhoto(adminCookie, 'sdr.avif', 'thumb-wrong.avif', {
       originalName: 'bad-thumb.avif',

@@ -68,48 +68,22 @@ function setupHomePeopleFilter(): void {
     }
   };
 
-  const ensureLoadMore = (nextCursor: string | null, people: number[] | null) => {
-    let container = document.querySelector<HTMLElement>('.load-more');
-    let button = container?.querySelector<HTMLButtonElement>('[data-action="load-more-albums"]') ?? null;
-    if (!nextCursor) {
-      button?.remove();
-      return;
-    }
-    if (!container) {
-      container = document.createElement('div');
-      container.className = 'load-more';
-      albumGrid.after(container);
-    }
-    if (!button) {
-      button = document.createElement('button');
-      button.className = 'button';
-      button.type = 'button';
-      button.dataset.action = 'load-more-albums';
-      button.textContent = '加载更多相册';
-      container.append(button);
-    }
-    button.dataset.cursor = nextCursor;
-    if (people && people.length > 0) button.dataset.people = people.join(',');
-    else delete button.dataset.people;
-  };
-
-  const renderAlbums = (albums: AlbumListResponse['albums'], nextCursor: string | null, people: number[] | null) => {
+  const renderAlbums = (albums: AlbumListResponse['albums']) => {
     const cards = albums.map((album, index) => albumCard(album, index));
     albumGrid.replaceChildren(...cards);
     if (newCard) albumGrid.append(newCard);
     if (empty) empty.hidden = albums.length > 0 || Boolean(newCard);
-    ensureLoadMore(nextCursor, people);
   };
 
   const load = async () => {
     const token = ++requestToken;
     const people = selected === null ? null : Array.from(selected);
-    const query = new URLSearchParams({ limit: '50' });
+    const query = new URLSearchParams({ limit: '100000' });
     if (people && people.length > 0) query.set('people', people.join(','));
     try {
       const result = await api<AlbumListResponse>(`/api/albums?${query.toString()}`);
       if (token !== requestToken) return;
-      renderAlbums(result.albums, result.nextCursor, people);
+      renderAlbums(result.albums);
     } catch (error) {
       if (token !== requestToken) return;
       toast(error instanceof ApiError ? error.message : '筛选相册失败', 'error');

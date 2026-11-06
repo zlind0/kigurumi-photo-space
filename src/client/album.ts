@@ -1,6 +1,6 @@
-import type { AlbumDTO, AlbumListResponse, PhotoDTO, PhotoListResponse, Visibility } from '../shared/types.js';
+import type { AlbumDTO, PhotoDTO, Visibility } from '../shared/types.js';
 import { api, ApiError, toast } from './api.js';
-import { albumCard, photoCard } from './dom.js';
+import { photoCard } from './dom.js';
 import { closeDialog, confirmDialog, openDialog, setupBackdropClose } from './ui.js';
 
 function albumIdFromPage(): number | null {
@@ -51,16 +51,6 @@ export function setupAlbumActions(): void {
     }
     if (action === 'close-album-rename') {
       closeDialog(renameDialog);
-      return;
-    }
-    if (action === 'load-more-photos') {
-      event.preventDefault();
-      void loadMorePhotos(actionNode as HTMLButtonElement);
-      return;
-    }
-    if (action === 'load-more-albums') {
-      event.preventDefault();
-      void loadMoreAlbums(actionNode as HTMLButtonElement);
       return;
     }
     if (action === 'set-tier') {
@@ -144,56 +134,6 @@ export function setupAlbumActions(): void {
       if (submit) submit.disabled = false;
     }
   });
-}
-
-async function loadMorePhotos(button: HTMLButtonElement): Promise<void> {
-  const albumId = albumIdFromPage();
-  const grid = document.querySelector<HTMLUListElement>('#photo-grid');
-  if (!albumId || !grid) return;
-  const cursor = button.dataset.cursor;
-  button.disabled = true;
-  try {
-    const result = await api<PhotoListResponse>(
-      `/api/albums/${albumId}/photos?limit=60${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
-    );
-    for (const photo of result.items) grid.append(photoCard(photo));
-    if (result.nextCursor) {
-      button.dataset.cursor = result.nextCursor;
-    } else {
-      button.remove();
-    }
-  } catch (error) {
-    toast(error instanceof ApiError ? error.message : '加载失败', 'error');
-  } finally {
-    button.disabled = false;
-  }
-}
-
-async function loadMoreAlbums(button: HTMLButtonElement): Promise<void> {
-  const grid = document.querySelector<HTMLUListElement>('#album-grid');
-  if (!grid) return;
-  const cursor = button.dataset.cursor;
-  const people = button.dataset.people;
-  button.disabled = true;
-  try {
-    const params = new URLSearchParams({ limit: '50' });
-    if (cursor) params.set('cursor', cursor);
-    if (people) params.set('people', people);
-    const result = await api<AlbumListResponse>(`/api/albums?${params.toString()}`);
-    const newCard = grid.querySelector('.album-new')?.closest('li') ?? null;
-    for (const album of result.albums) {
-      grid.insertBefore(albumCard(album, 1), newCard);
-    }
-    if (result.nextCursor) {
-      button.dataset.cursor = result.nextCursor;
-    } else {
-      button.remove();
-    }
-  } catch (error) {
-    toast(error instanceof ApiError ? error.message : '加载失败', 'error');
-  } finally {
-    button.disabled = false;
-  }
 }
 
 async function setTier(button: HTMLButtonElement): Promise<void> {

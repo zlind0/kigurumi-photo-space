@@ -4,7 +4,6 @@ import { renderLayout, type AssetManifest } from './layout.js';
 
 export interface HomePageOptions {
   albums: AlbumDTO[];
-  nextCursor: string | null;
   people: PersonDTO[];
   role: Role;
   authenticated: boolean;
@@ -50,7 +49,7 @@ function peopleStrip(people: PersonDTO[]): string {
 function albumCard(album: AlbumDTO, index: number, role: Role): string {
   const cover = album.cover;
   const image = cover
-    ? `<img src="${escapeHtml(cover.thumbUrl)}" alt="${escapeHtml(album.name)} 的封面" width="600" height="600" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"'}>`
+    ? `<img src="${escapeHtml(cover.thumbUrl)}" alt="${escapeHtml(album.name)} 的封面" width="400" height="400" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"'}>`
     : `<span class="album-placeholder" aria-hidden="true">暂无照片</span>`;
   const backLayer = cover
     ? `<span class="album-print-inner" style="background-image:url('${escapeHtml(cover.thumbUrl)}')"></span>`
@@ -109,7 +108,6 @@ ${empty}
   <h2>没有符合条件的相册</h2>
   <p>换一个或减少选中的人物试试。</p>
 </div>
-${options.nextCursor ? `<div class="load-more"><button class="button" type="button" data-action="load-more-albums" data-cursor="${escapeHtml(options.nextCursor)}">加载更多相册</button></div>` : ''}
 <dialog id="new-album-dialog" class="dialog" aria-labelledby="new-album-title">
   <form id="new-album-form" method="dialog" novalidate>
     <h2 id="new-album-title">新建相册</h2>

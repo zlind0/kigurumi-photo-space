@@ -41,7 +41,7 @@ export function registerAlbumRoutes(app: FastifyInstance, db: Database, config: 
       db,
       request.role,
       query.cursor,
-      clampLimit(query.limit, 50, 100),
+      clampLimit(query.limit, 100_000, 100_000),
       Array.from(new Set(personIds)),
     );
     reply.header('cache-control', 'private, no-store');
@@ -78,7 +78,7 @@ export function registerAlbumRoutes(app: FastifyInstance, db: Database, config: 
     const featured = listFeatured(db, album, request.role).map((photo) =>
       photoToDTO(photo, album, request.role, sessionId),
     );
-    const photos = listPhotos(db, album, request.role, undefined, 60, sessionId);
+    const photos = listPhotos(db, album, request.role, undefined, 100_000, sessionId);
     const people = listPeopleForAlbum(db, album.id).map(personToDTO);
     const permissions: PermissionsDTO = {
       canUpload: canUpload(request.role),

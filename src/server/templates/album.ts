@@ -6,7 +6,6 @@ import { renderLayout, type AssetManifest } from './layout.js';
 export interface AlbumPageOptions {
   album: AlbumDTO;
   photos: PhotoDTO[];
-  nextCursor: string | null;
   allPeople: PersonDTO[];
   permissions: PermissionsDTO;
   role: Role;
@@ -116,7 +115,7 @@ function photoCard(photo: PhotoDTO, index: number, eager = false): string {
   const loading = eager ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"';
   return `<li class="photo-item" data-photo-id="${photo.id}" data-tier="${photo.tier}" data-visibility="${photo.visibility}" data-can-delete="${photo.canDelete ? '1' : '0'}" data-can-set-tier="${photo.canSetTier ? '1' : '0'}" data-can-set-visibility="${photo.canSetVisibility ? '1' : '0'}">
   <button class="photo-card" type="button" data-action="open-lightbox" data-photo-id="${photo.id}" data-full="${escapeHtml(photo.fullUrl)}" data-thumb="${escapeHtml(photo.thumbUrl)}" data-width="${photo.width}" data-height="${photo.height}" data-caption="${escapeHtml(photo.originalName ?? '')}" aria-label="查看照片 ${escapeHtml(photo.originalName ?? String(photo.id))}">
-    <img src="${escapeHtml(photo.thumbUrl)}" alt="${escapeHtml(photo.originalName ?? '照片')}" width="600" height="600" ${loading}>
+    <img src="${escapeHtml(photo.thumbUrl)}" alt="${escapeHtml(photo.originalName ?? '照片')}" width="400" height="400" ${loading}>
     ${badges.length ? `<span class="photo-badges">${badges.join('')}</span>` : ''}
   </button>
   ${photoActions(photo)}
@@ -127,8 +126,7 @@ export function renderAlbumPage(options: AlbumPageOptions): string {
   const { album, photos, permissions } = options;
   const photoBody =
     photos.length > 0
-      ? `<ul class="photo-grid" id="photo-grid">${photos.map((photo, index) => photoCard(photo, index)).join('')}</ul>
-  ${options.nextCursor ? `<div class="load-more"><button class="button" type="button" data-action="load-more-photos" data-cursor="${escapeHtml(options.nextCursor)}">加载更多照片</button></div>` : ''}`
+      ? `<ul class="photo-grid" id="photo-grid">${photos.map((photo, index) => photoCard(photo, index)).join('')}</ul>`
       : `<div class="empty-state"><h2>相册还是空的</h2><p>${permissions.canUpload ? '上传照片后，它们会出现在这里。' : '等上传者添加照片。'}</p></div>`;
   const sectionActions: string[] = [];
   if (permissions.canUpload) {

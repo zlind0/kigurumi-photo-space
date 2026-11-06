@@ -25,6 +25,9 @@ import { renderUploadPage } from '../templates/upload.js';
 import { renderAdminPage } from '../templates/admin.js';
 import { renderLayout, type AssetManifest } from '../templates/layout.js';
 
+/** 页面一次性渲染全部内容，不再分页。 */
+const ALL_ITEMS_LIMIT = 100_000;
+
 const MIME: Record<string, string> = {
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
@@ -103,14 +106,13 @@ export function registerPageRoutes(
   manifest: AssetManifest,
 ): void {
   app.get('/', async (request, reply) => {
-    const result = listAlbums(db, request.role, undefined, 50);
+    const result = listAlbums(db, request.role, undefined, ALL_ITEMS_LIMIT);
     reply
       .header('cache-control', 'private, no-cache')
       .type('text/html; charset=utf-8')
       .send(
         renderHomePage({
           albums: result.albums,
-          nextCursor: result.nextCursor,
           people: listPeople(db).map(personToDTO),
           role: request.role,
           authenticated: Boolean(request.auth),
@@ -123,7 +125,7 @@ export function registerPageRoutes(
     const { albumDir } = request.params as { albumDir: string };
     const album = requireVisibleAlbum(getAlbumByDir(db, albumDir), request.role);
     const sessionId = request.auth?.session.id ?? null;
-    const photos = listPhotos(db, album, request.role, undefined, 60, sessionId);
+    const photos = listPhotos(db, album, request.role, undefined, ALL_ITEMS_LIMIT, sessionId);
     const albumPeople = listPeopleForAlbum(db, album.id).map(personToDTO);
     const permissions: PermissionsDTO = {
       canUpload: canUpload(request.role),
@@ -150,7 +152,6 @@ export function registerPageRoutes(
             canManage: permissions.canManageAlbum,
           },
           photos: photos.items,
-          nextCursor: photos.nextCursor,
           allPeople: listPeople(db).map(personToDTO),
           permissions,
           role: request.role,

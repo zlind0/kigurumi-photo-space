@@ -7,8 +7,8 @@ import type { PhotoInfoDTO, PhotoListResponse, Tier, Visibility } from '../../sh
 import { clampLimit } from '../../shared/cursor.js';
 import { canUpload } from '../auth/permissions.js';
 import { assertSameOrigin } from '../http/csrf.js';
-import { AppError, badRequest, forbidden, notFound, rateLimited, tooLarge, unauthorized, unprocessable } from '../http/errors.js';
-import { ConcurrencyLimiter, SlidingWindowLimiter } from '../http/rate-limit.js';
+import { AppError, badRequest, forbidden, notFound, tooLarge, unauthorized, unprocessable } from '../http/errors.js';
+import { ConcurrencyLimiter } from '../http/rate-limit.js';
 import { getAlbumById, requireVisibleAlbum } from '../services/albums.js';
 import {
   createPhoto,
@@ -38,7 +38,6 @@ interface UploadedPart {
 export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: Config): void {
   const globalUploads = new ConcurrencyLimiter(config.uploadConcurrency);
   const sessionUploads = new Map<string, ConcurrencyLimiter>();
-  const uploadRate = new SlidingWindowLimiter(10, 60_000);
 
   app.get('/api/albums/:id/photos', async (request, reply) => {
     const { id } = request.params as { id: string };
@@ -49,11 +48,23 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
       album,
       request.role,
       query.cursor,
-      clampLimit(query.limit, 60, 100),
+      clampLimit(query.limit, 100_000, 100_000),
       request.auth?.session.id ?? null,
     );
     reply.header('cache-control', 'private, no-store');
     return result satisfies PhotoListResponse;
+  });
+
+  app.get('/api/albums/:id/photo-names', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const album = requireVisibleAlbum(getAlbumById(db, parseId(id)), request.role);
+    const rows = db.all<{ original_name: string }>(
+      `SELECT original_name FROM photos
+       WHERE album_id = ? AND deleted_at IS NULL AND original_name IS NOT NULL`,
+      album.id,
+    );
+    reply.header('cache-control', 'private, no-store');
+    return { names: rows.map((row) => row.original_name) };
   });
 
   app.get('/api/photos/:id/info', async (request, reply) => {
@@ -91,11 +102,6 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
     assertSameOrigin(request, config);
     if (!request.auth) throw unauthorized();
     if (!canUpload(request.role)) throw forbidden('只有上传者可以上传照片');
-    const rate = uploadRate.hit(request.ip);
-    if (!rate.allowed) {
-      reply.header('retry-after', Math.ceil(rate.retryAfterMs / 1000));
-      throw rateLimited('上传过于频繁，请稍后再试');
-    }
     const { id } = request.params as { id: string };
     const album = requireVisibleAlbum(getAlbumById(db, parseId(id)), request.role);
     const sessionId = request.auth.session.id;

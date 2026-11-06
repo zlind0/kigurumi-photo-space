@@ -391,6 +391,18 @@ export async function createPhoto(
   if (existing) {
     return { photo: existing, deduped: true };
   }
+  if (input.originalName) {
+    const sameName = db.get<PhotoRow>(
+      `SELECT * FROM photos
+       WHERE album_id = ? AND original_name = ? AND deleted_at IS NULL
+       ORDER BY id ASC LIMIT 1`,
+      album.id,
+      input.originalName,
+    );
+    if (sameName) {
+      return { photo: sameName, deduped: true };
+    }
+  }
   const count = db.get<{ c: number }>(
     'SELECT COUNT(*) AS c FROM photos WHERE album_id = ? AND deleted_at IS NULL',
     album.id,

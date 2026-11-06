@@ -130,9 +130,7 @@ ${css}
 <main id="main" class="site-main">
 ${options.body}
 </main>
-<footer class="site-footer">
-  <p></p>
-</footer>
+
 <dialog id="login-dialog" class="dialog login-dialog" aria-labelledby="login-title">
   <form id="login-form" method="dialog" novalidate>
     <h2 id="login-title">登录</h2>
