@@ -119,8 +119,8 @@ function setupUpload(): void {
   if (!albumSelect || !fileInput || !folderInput || !dropZone || !queueList) return;
 
   const options: ProcessOptions = {
-    maxDimension: 6000,
-    maxPixels: 80_000_000,
+    maxDimension: 10000,
+    maxPixels: 100_000_000,
     fullQuality: 60,
     thumbQuality: 50,
     speed: 8,

@@ -149,6 +149,7 @@ ${options.body}
   </form>
 </dialog>
 <dialog id="lightbox" class="dialog lightbox" aria-label="照片查看器" tabindex="-1">
+  <div class="lightbox-glow" aria-hidden="true"></div>
   <div class="lightbox-inner">
     <div class="lightbox-toolbar">
       <div class="lightbox-info">
@@ -168,6 +169,7 @@ ${options.body}
     </div>
     <button type="button" class="lightbox-nav prev" data-action="lightbox-prev" aria-label="上一张">${ICON_CHEVRON_LEFT}</button>
     <figure class="lightbox-figure">
+      <div class="lightbox-placeholder" aria-hidden="true"></div>
       <img id="lightbox-image" alt="" decoding="async">
     </figure>
     <button type="button" class="lightbox-nav next" data-action="lightbox-next" aria-label="下一张">${ICON_CHEVRON_RIGHT}</button>

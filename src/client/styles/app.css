@@ -925,7 +925,7 @@ textarea:focus {
   height: 30%;
   background: linear-gradient(transparent, rgb(0 0 0 / 68%));
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 
 .lightbox-figure {
@@ -935,14 +935,118 @@ textarea:focus {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.lightbox-placeholder {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0;
+  filter: blur(24px) saturate(1.1);
+  transform: scale(1.04);
+  transition: opacity 300ms ease;
+}
+
+.lightbox-placeholder.is-visible {
+  opacity: 1;
+}
+
+.lightbox-placeholder::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 30%);
 }
 
 .lightbox-figure img {
+  position: relative;
+  z-index: 1;
   width: 100vw;
   height: 100dvh;
   max-width: 100vw;
   max-height: 100dvh;
   object-fit: contain;
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+
+.lightbox-figure img.is-loaded {
+  opacity: 1;
+  animation: lightbox-image-in 320ms ease;
+}
+
+@keyframes lightbox-image-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.lightbox-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0;
+  padding: 6px;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  transition: opacity 300ms ease;
+}
+
+.lightbox.is-slow .lightbox-glow {
+  opacity: 1;
+}
+
+.lightbox-glow::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg 50%,
+    color-mix(in srgb, var(--accent) 60%, transparent) 65%,
+    var(--accent) 80%,
+    transparent 90%
+  );
+  filter: blur(1px);
+  animation: lightbox-glow-spin 1.4s linear infinite;
+}
+
+@keyframes lightbox-glow-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@supports not ((mask-composite: exclude) or (-webkit-mask-composite: xor)) {
+  .lightbox-glow {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lightbox-glow::before {
+    animation: none;
+  }
+
+  .lightbox-figure img.is-loaded {
+    animation: none;
+  }
 }
 
 .lightbox-actions {

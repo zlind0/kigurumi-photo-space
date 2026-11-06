@@ -100,6 +100,7 @@ function renderInfo(container: HTMLElement, info: PhotoInfoDTO): void {
 export function setupLightbox(): void {
   const dialog = document.querySelector<HTMLDialogElement>('#lightbox');
   const image = document.querySelector<HTMLImageElement>('#lightbox-image');
+  const placeholder = document.querySelector<HTMLElement>('.lightbox-placeholder');
   const infoWrap = document.querySelector<HTMLElement>('.lightbox-info');
   const infoButton = document.querySelector<HTMLButtonElement>('[data-action="lightbox-info"]');
   const infoBody = document.querySelector<HTMLElement>('#lightbox-info-body');
@@ -110,9 +111,28 @@ export function setupLightbox(): void {
 
   let items: LightboxItem[] = [];
   let index = 0;
+  let loadToken = 0;
+  let glowTimer: number | undefined;
   const infoCache = new Map<number, PhotoInfoDTO>();
 
   const current = (): LightboxItem | null => items[index] ?? null;
+
+  const beginLoading = (): void => {
+    window.clearTimeout(glowTimer);
+    dialog.classList.add('is-loading');
+    dialog.classList.remove('is-slow');
+    dialog.setAttribute('aria-busy', 'true');
+    glowTimer = window.setTimeout(() => {
+      if (dialog.classList.contains('is-loading')) dialog.classList.add('is-slow');
+    }, 300);
+  };
+
+  const endLoading = (): void => {
+    window.clearTimeout(glowTimer);
+    glowTimer = undefined;
+    dialog.classList.remove('is-loading', 'is-slow');
+    dialog.removeAttribute('aria-busy');
+  };
 
   const filename = (extension: string): string => {
     const item = current();
@@ -220,10 +240,30 @@ export function setupLightbox(): void {
     if (items.length === 0) return;
     index = (nextIndex + items.length) % items.length;
     const item = items[index]!;
+    const token = ++loadToken;
     image.alt = item.caption || '照片';
-    image.src = item.full;
     image.width = item.width;
     image.height = item.height;
+    // 先淡出上一张，避免新图加载期间继续显示旧图（例如相册封面）。
+    image.classList.remove('is-loaded');
+    if (placeholder) {
+      placeholder.style.backgroundImage = item.thumb ? `url(${JSON.stringify(item.thumb)})` : 'none';
+      placeholder.classList.toggle('is-visible', Boolean(item.thumb));
+    }
+    beginLoading();
+    image.src = item.full;
+    image.decode().then(
+      () => {
+        if (token !== loadToken) return;
+        endLoading();
+        image.classList.add('is-loaded');
+      },
+      () => {
+        if (token !== loadToken) return;
+        endLoading();
+        toast('图片加载失败，请重试', 'error');
+      },
+    );
     if (infoWrap?.matches(':hover, :focus-within, .is-open')) void loadInfo();
   };
 
@@ -232,12 +272,19 @@ export function setupLightbox(): void {
     const full = node.dataset.full ?? '';
     const found = items.findIndex((item) => item.full === full);
     index = found >= 0 ? found : 0;
-    show(index);
     if (!dialog.open) {
+      // 打开前先清掉上一张清晰图，并把模糊底图换成当前照片。
+      image.classList.remove('is-loaded');
+      const item = items[index];
+      if (placeholder && item) {
+        placeholder.style.backgroundImage = item.thumb ? `url(${JSON.stringify(item.thumb)})` : 'none';
+        placeholder.classList.toggle('is-visible', Boolean(item.thumb));
+      }
       dialog.showModal();
       // showModal 默认聚焦第一个可聚焦元素（信息按钮），会让信息弹窗一打开就展开。
       dialog.focus();
     }
+    show(index);
   };
 
   document.addEventListener('click', (event) => {
@@ -308,9 +355,8 @@ export function setupLightbox(): void {
     closeDownloadMenu();
     infoWrap?.classList.remove('is-open');
     infoButton?.setAttribute('aria-expanded', 'false');
-  });
-
-  image.addEventListener('error', () => {
-    toast('图片加载失败，请重试', 'error');
+    loadToken += 1;
+    endLoading();
+    image.classList.remove('is-loaded');
   });
 }
