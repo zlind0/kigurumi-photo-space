@@ -15,6 +15,7 @@ import {
   getCoverPhoto,
   listAlbums,
   requireVisibleAlbum,
+  updateAlbumName,
   updateAlbumVisibility,
 } from '../services/albums.js';
 import { listFeatured, listPhotos, photoToDTO } from '../services/photos.js';
@@ -101,20 +102,36 @@ export function registerAlbumRoutes(app: FastifyInstance, db: Database, config: 
     if (!request.auth) throw unauthorized();
     const { id } = request.params as { id: string };
     const album = requireVisibleAlbum(getAlbumById(db, parseId(id)), request.role);
-    const body = request.body as { visibility?: unknown } | null;
-    const visibility = body?.visibility;
-    if (visibility !== 'public' && visibility !== 'private') {
-      throw badRequest('visibility 必须是 public 或 private');
-    }
-    const updated = updateAlbumVisibility(db, {
-      album,
-      visibility: visibility as Visibility,
+    const body = request.body as { visibility?: unknown; name?: unknown } | null;
+    const hasVisibility = body?.visibility !== undefined;
+    const hasName = body?.name !== undefined;
+    if (!hasVisibility && !hasName) throw badRequest('没有需要更新的字段');
+    const auditContext = {
       userId: request.auth.user.id,
       role: request.role,
       sessionId: request.auth.session.id,
       ip: request.ip,
       userAgent: request.headers['user-agent'] ?? null,
-    });
+    };
+    let updated = album;
+    if (hasVisibility) {
+      const visibility = body?.visibility;
+      if (visibility !== 'public' && visibility !== 'private') {
+        throw badRequest('visibility 必须是 public 或 private');
+      }
+      updated = updateAlbumVisibility(db, {
+        album: updated,
+        visibility: visibility as Visibility,
+        ...auditContext,
+      });
+    }
+    if (hasName) {
+      updated = await updateAlbumName(db, config, {
+        album: updated,
+        name: body?.name,
+        ...auditContext,
+      });
+    }
     reply.header('cache-control', 'private, no-store');
     return {
       album: albumToDTO(

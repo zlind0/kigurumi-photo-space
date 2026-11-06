@@ -178,6 +178,18 @@ export async function updateCoverLinks(
   if (await fileExists(thumb)) await atomicLink(thumb, coverThumb);
 }
 
+export async function renameAlbumDir(config: Config, fromDir: string, toDir: string): Promise<void> {
+  const from = albumPath(config, fromDir);
+  const to = albumPath(config, toDir);
+  if (from === to) return;
+  if (await fileExists(to)) throw new Error('目标相册目录已存在');
+  if (!(await fileExists(from))) {
+    await ensureAlbumDirs(config, toDir);
+    return;
+  }
+  await rename(from, to);
+}
+
 export async function deleteAlbumToTrash(config: Config, albumDir: string): Promise<void> {
   const source = albumPath(config, albumDir);
   if (!(await fileExists(source))) return;

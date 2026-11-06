@@ -357,6 +357,47 @@ describe('API integration', () => {
     expect(media.statusCode).toBe(200);
   });
 
+  it('renames an album and moves its files', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/albums',
+      headers: { ...authHeaders(adminCookie), 'content-type': 'application/json' },
+      payload: { name: '改名前' },
+    });
+    expect(created.statusCode).toBe(201);
+    const renameAlbumId = created.json().album.id as number;
+    const uploaded = await uploadPhotoTo(adminCookie, renameAlbumId, 'sdr.avif', 'thumb.avif', {
+      originalName: 'rename.avif',
+    });
+    expect(uploaded.statusCode).toBe(201);
+    const oldFullUrl = uploaded.body.photo.fullUrl as string;
+
+    const renamed = await app.inject({
+      method: 'PATCH',
+      url: `/api/albums/${renameAlbumId}`,
+      headers: { ...authHeaders(adminCookie), 'content-type': 'application/json' },
+      payload: { name: '改名后' },
+    });
+    expect(renamed.statusCode).toBe(200);
+    expect(renamed.json().album.name).toBe('改名后');
+    expect(renamed.json().album.dir).toBe('改名后');
+
+    const detail = await app.inject({ method: 'GET', url: `/api/albums/${renameAlbumId}` });
+    expect(detail.json().album.name).toBe('改名后');
+    const newFullUrl = detail.json().photos.items[0].fullUrl as string;
+    expect(newFullUrl).not.toBe(oldFullUrl);
+    const media = await app.inject({ method: 'GET', url: newFullUrl });
+    expect(media.statusCode).toBe(200);
+
+    const reused = await app.inject({
+      method: 'POST',
+      url: '/api/albums',
+      headers: { ...authHeaders(adminCookie), 'content-type': 'application/json' },
+      payload: { name: '改名前' },
+    });
+    expect(reused.statusCode).toBe(201);
+  });
+
   it('reports health', async () => {
     const response = await app.inject({ method: 'GET', url: '/healthz' });
     expect(response.statusCode).toBe(200);

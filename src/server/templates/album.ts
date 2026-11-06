@@ -63,6 +63,23 @@ function peopleEditor(album: AlbumDTO, allPeople: PersonDTO[]): string {
 </dialog>`;
 }
 
+function renameDialog(album: AlbumDTO): string {
+  return `<dialog id="album-rename-dialog" class="dialog" aria-labelledby="album-rename-title">
+  <form id="album-rename-form" method="dialog" novalidate>
+    <h2 id="album-rename-title">重命名相册</h2>
+    <label class="field">
+      <span>相册名</span>
+      <input id="album-rename-name" name="name" type="text" maxlength="80" required value="${escapeHtml(album.name)}">
+    </label>
+    <p id="album-rename-error" class="form-error" role="status" aria-live="polite"></p>
+    <div class="dialog-actions">
+      <button type="button" class="button ghost" data-action="close-album-rename">取消</button>
+      <button type="submit" class="button primary">保存</button>
+    </div>
+  </form>
+</dialog>`;
+}
+
 function photoActions(photo: PhotoDTO): string {
   const actions: string[] = [];
   if (photo.canSetTier) {
@@ -120,6 +137,7 @@ export function renderAlbumPage(options: AlbumPageOptions): string {
   if (permissions.canManageAlbum) {
     sectionActions.push(
       `<button class="button small" type="button" data-action="edit-album-people">编辑人物</button>`,
+      `<button class="button small" type="button" data-action="rename-album">重命名</button>`,
       `<button class="button small" type="button" data-action="toggle-album-visibility" data-visibility="${album.visibility === 'public' ? 'private' : 'public'}">${album.visibility === 'public' ? '设为私密相册' : '设为公开相册'}</button>`,
       `<button class="button small danger" type="button" data-action="delete-album">删除相册</button>`,
     );
@@ -146,7 +164,8 @@ export function renderAlbumPage(options: AlbumPageOptions): string {
     ${photoBody}
   </section>
 </article>
-${permissions.canManageAlbum ? peopleEditor(album, options.allPeople) : ''}`;
+${permissions.canManageAlbum ? peopleEditor(album, options.allPeople) : ''}
+${permissions.canManageAlbum ? renameDialog(album) : ''}`;
   return renderLayout({
     title: `${album.name} · Kig Photo Space`,
     body,

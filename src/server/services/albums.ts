@@ -4,7 +4,7 @@ import type { AlbumDTO, CoverDTO, PersonDTO, Role, Visibility } from '../../shar
 import { canCreateAlbum, canManageAlbum, canUpload, canViewAlbum } from '../auth/permissions.js';
 import { AppError, badRequest, conflict, forbidden, notFound } from '../http/errors.js';
 import { decodeCursor, encodeCursor } from '../../shared/cursor.js';
-import { deleteAlbumToTrash, ensureAlbumDirs } from './storage.js';
+import { deleteAlbumToTrash, ensureAlbumDirs, renameAlbumDir } from './storage.js';
 import { audit } from './audit.js';
 import { invalidateAlbum } from './album-cache.js';
 import { listPeopleForAlbums, personToDTO } from './people.js';
@@ -343,6 +343,63 @@ export function updateAlbumVisibility(
     detail: { from: input.album.visibility, to: input.visibility },
   });
   return { ...input.album, visibility: input.visibility };
+}
+
+export async function updateAlbumName(
+  db: Database,
+  config: Config,
+  input: {
+    album: AlbumRow;
+    name: unknown;
+    userId: number;
+    role: Role;
+    sessionId: string;
+    ip: string | null;
+    userAgent: string | null;
+  },
+): Promise<AlbumRow> {
+  if (!canManageAlbum(input.role)) throw forbidden('只有管理员可以修改相册名');
+  const sanitized = sanitizeAlbumName(input.name, config.maxAlbumNameLength);
+  if (sanitized.name === input.album.name && sanitized.dirName === input.album.dir_name) {
+    return input.album;
+  }
+  const existing = db.get<{ id: number }>(
+    'SELECT id FROM albums WHERE dir_key = ? AND id <> ?',
+    sanitized.dirKey,
+    input.album.id,
+  );
+  if (existing) throw conflict('ALBUM_NAME_TAKEN', '相册名已存在');
+  try {
+    await renameAlbumDir(config, input.album.dir_name, sanitized.dirName);
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw conflict('ALBUM_DIR_TAKEN', '相册目录已存在，请换一个名字');
+  }
+  db.run(
+    'UPDATE albums SET name = ?, dir_name = ?, dir_key = ? WHERE id = ?',
+    sanitized.name,
+    sanitized.dirName,
+    sanitized.dirKey,
+    input.album.id,
+  );
+  invalidateAlbum(input.album.dir_name);
+  invalidateAlbum(sanitized.dirName);
+  audit(db, {
+    userId: input.userId,
+    sessionId: input.sessionId,
+    action: 'album.rename',
+    ip: input.ip,
+    userAgent: input.userAgent,
+    targetType: 'album',
+    targetId: input.album.id,
+    detail: { from: input.album.name, to: sanitized.name, fromDir: input.album.dir_name, toDir: sanitized.dirName },
+  });
+  return {
+    ...input.album,
+    name: sanitized.name,
+    dir_name: sanitized.dirName,
+    dir_key: sanitized.dirKey,
+  };
 }
 
 export async function deleteAlbum(

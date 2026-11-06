@@ -15,6 +15,11 @@ export function setupAlbumActions(): void {
   const newAlbumName = document.querySelector<HTMLInputElement>('#new-album-name');
   const newAlbumError = document.querySelector<HTMLElement>('#new-album-error');
   setupBackdropClose(newAlbumDialog);
+  const renameDialog = document.querySelector<HTMLDialogElement>('#album-rename-dialog');
+  const renameForm = document.querySelector<HTMLFormElement>('#album-rename-form');
+  const renameName = document.querySelector<HTMLInputElement>('#album-rename-name');
+  const renameError = document.querySelector<HTMLElement>('#album-rename-error');
+  setupBackdropClose(renameDialog);
 
   document.addEventListener('click', (event) => {
     const target = event.target as HTMLElement | null;
@@ -31,6 +36,21 @@ export function setupAlbumActions(): void {
     }
     if (action === 'close-new-album') {
       closeDialog(newAlbumDialog);
+      return;
+    }
+    if (action === 'rename-album') {
+      event.preventDefault();
+      if (renameError) renameError.textContent = '';
+      if (renameName) renameName.value = renameName.defaultValue;
+      openDialog(renameDialog);
+      window.setTimeout(() => {
+        renameName?.focus();
+        renameName?.select();
+      }, 30);
+      return;
+    }
+    if (action === 'close-album-rename') {
+      closeDialog(renameDialog);
       return;
     }
     if (action === 'load-more-photos') {
@@ -66,6 +86,33 @@ export function setupAlbumActions(): void {
     if (action === 'toggle-album-visibility') {
       event.preventDefault();
       void toggleAlbumVisibility(actionNode);
+    }
+  });
+
+  renameForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const albumId = albumIdFromPage();
+    const name = renameName?.value.trim() ?? '';
+    if (!albumId) return;
+    if (!name) {
+      if (renameError) renameError.textContent = '请输入相册名';
+      return;
+    }
+    const submit = renameForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      await api(`/api/albums/${albumId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name }),
+      });
+      closeDialog(renameDialog);
+      window.location.reload();
+    } catch (error) {
+      if (renameError) {
+        renameError.textContent = error instanceof ApiError ? error.message : '重命名失败';
+      }
+    } finally {
+      if (submit) submit.disabled = false;
     }
   });
 
