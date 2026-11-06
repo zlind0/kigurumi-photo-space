@@ -22,17 +22,28 @@ function personButton(person: PersonDTO): string {
 </li>`;
 }
 
+/** 从所有人物里均匀挑出 6 个色相，顺时针围成一个圈。 */
+function selectAllDots(people: PersonDTO[]): string {
+  const radius = 28;
+  return Array.from({ length: 6 }, (_, index) => {
+    const person = people[Math.floor((index * people.length) / 6)] ?? people[index % people.length]!;
+    const angle = ((index * 60 - 90) * Math.PI) / 180;
+    const x = 50 + radius * Math.cos(angle);
+    const y = 50 + radius * Math.sin(angle);
+    return `<span class="select-all-dot" style="--dot-color:${escapeHtml(person.accent)};left:${x.toFixed(2)}%;top:${y.toFixed(2)}%"></span>`;
+  }).join('');
+}
+
 function peopleStrip(people: PersonDTO[]): string {
   if (people.length === 0) return '';
-  return `<section class="people-strip" aria-label="按人物筛选相册">
-  <ul class="people-grid" id="people-grid">${people.map(personButton).join('')}</ul>
-  <button class="people-select-all" type="button" data-action="select-all-people" aria-label="全选人物" title="全选人物">
-    <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-      <path d="M3 9.5l4.5 4.5L16 5.5" />
-      <path d="M9 15.5l4.5 4.5L22 11.5" />
-      <path d="M15 21.5l4.5 4.5L28 17.5" />
-    </svg>
+  const selectAll = `<li class="person-item">
+  <button class="person-button select-all-button is-selected" type="button" data-action="select-all-people" aria-pressed="true" aria-label="全选人物" title="显示所有人物">
+    <span class="select-all-dots" aria-hidden="true">${selectAllDots(people)}</span>
+    <span class="person-name">全部</span>
   </button>
+</li>`;
+  return `<section class="people-strip" aria-label="按人物筛选相册">
+  <ul class="people-grid" id="people-grid" style="--people-count:${people.length + 1}">${selectAll}${people.map(personButton).join('')}</ul>
 </section>`;
 }
 
@@ -119,6 +130,7 @@ ${options.nextCursor ? `<div class="load-more"><button class="button" type="butt
     role: options.role,
     authenticated: options.authenticated,
     active: 'home',
+    hideHomeLink: true,
     assets: options.manifest.entry('main.ts'),
   });
 }

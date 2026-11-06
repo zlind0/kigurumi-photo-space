@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { Role } from '../../shared/types.js';
+import { ICON_CHEVRON_LEFT, ICON_CHEVRON_RIGHT, ICON_CLOSE, ICON_DOWNLOAD, ICON_GEAR, ICON_INFO, ICON_UPLOAD_ARROW, ICON_USER } from '../../shared/icons.js';
 import { escapeHtml } from '../http/errors.js';
 
 interface ManifestEntry {
@@ -51,6 +52,7 @@ export interface LayoutOptions {
   role: Role;
   authenticated: boolean;
   active?: 'home' | 'upload' | 'admin';
+  hideHomeLink?: boolean;
   assets: Assets;
   description?: string;
   bodyClass?: string;
@@ -58,17 +60,19 @@ export interface LayoutOptions {
 
 function nav(options: LayoutOptions): string {
   const items: string[] = [];
-  items.push(
-    `<a class="nav-link${options.active === 'home' ? ' is-active' : ''}" href="/">相册</a>`,
-  );
+  if (!options.hideHomeLink) {
+    items.push(
+      `<a class="nav-link${options.active === 'home' ? ' is-active' : ''}" href="/">相册</a>`,
+    );
+  }
   if (options.role === 'uploader' || options.role === 'admin') {
     items.push(
-      `<a class="nav-link${options.active === 'upload' ? ' is-active' : ''}" href="/upload">上传</a>`,
+      `<a class="nav-icon-button is-emphasis${options.active === 'upload' ? ' is-active' : ''}" href="/upload" aria-label="上传照片" title="上传照片">${ICON_UPLOAD_ARROW}</a>`,
     );
   }
   if (options.role === 'admin') {
     items.push(
-      `<a class="nav-link${options.active === 'admin' ? ' is-active' : ''}" href="/admin">管理</a>`,
+      `<a class="nav-icon-button${options.active === 'admin' ? ' is-active' : ''}" href="/admin" aria-label="管理" title="管理">${ICON_GEAR}</a>`,
     );
   }
   if (options.authenticated) {
@@ -77,7 +81,9 @@ function nav(options: LayoutOptions): string {
       `<button class="nav-link" type="button" data-action="logout">退出</button>`,
     );
   } else {
-    items.push(`<button class="nav-link nav-login" type="button" data-action="open-login">登录</button>`);
+    items.push(
+      `<button class="nav-icon-button" type="button" data-action="open-login" aria-label="登录" title="登录">${ICON_USER}</button>`,
+    );
   }
   return items.join('');
 }
@@ -142,19 +148,29 @@ ${options.body}
     </div>
   </form>
 </dialog>
-<dialog id="lightbox" class="dialog lightbox" aria-label="照片查看器">
+<dialog id="lightbox" class="dialog lightbox" aria-label="照片查看器" tabindex="-1">
   <div class="lightbox-inner">
-    <button type="button" class="lightbox-close" data-action="lightbox-close" aria-label="关闭">×</button>
-    <button type="button" class="lightbox-nav prev" data-action="lightbox-prev" aria-label="上一张">‹</button>
+    <div class="lightbox-toolbar">
+      <div class="lightbox-info">
+        <button type="button" class="lightbox-tool" data-action="lightbox-info" aria-label="照片信息" title="照片信息" aria-haspopup="true" aria-expanded="false">${ICON_INFO}</button>
+        <div class="lightbox-info-popover" role="dialog" aria-label="照片信息">
+          <div id="lightbox-info-body" class="info-panel" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+      <div class="lightbox-download">
+        <button type="button" class="lightbox-tool" data-action="lightbox-download" aria-label="下载" title="下载" aria-haspopup="true" aria-expanded="false">${ICON_DOWNLOAD}</button>
+        <div class="lightbox-download-menu" role="menu">
+          <button type="button" role="menuitem" data-action="download-avif">AVIF（高效）</button>
+          <button type="button" role="menuitem" data-action="download-jpeg">JPEG（兼容）</button>
+        </div>
+      </div>
+      <button type="button" class="lightbox-tool" data-action="lightbox-close" aria-label="关闭" title="关闭">${ICON_CLOSE}</button>
+    </div>
+    <button type="button" class="lightbox-nav prev" data-action="lightbox-prev" aria-label="上一张">${ICON_CHEVRON_LEFT}</button>
     <figure class="lightbox-figure">
       <img id="lightbox-image" alt="" decoding="async">
-      <figcaption id="lightbox-caption"></figcaption>
-      <div class="lightbox-actions">
-        <button type="button" class="button small" data-action="download-avif">下载 AVIF</button>
-        <button type="button" class="button small" data-action="download-jpeg">下载 JPEG</button>
-      </div>
     </figure>
-    <button type="button" class="lightbox-nav next" data-action="lightbox-next" aria-label="下一张">›</button>
+    <button type="button" class="lightbox-nav next" data-action="lightbox-next" aria-label="下一张">${ICON_CHEVRON_RIGHT}</button>
   </div>
 </dialog>
 <noscript><p class="noscript">需要启用 JavaScript 才能登录、上传和查看大图。照片列表仍可直接浏览。</p></noscript>

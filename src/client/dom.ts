@@ -1,3 +1,4 @@
+import { ICON_LOCK, ICON_STAR, ICON_TRASH } from '../shared/icons.js';
 import type { AlbumDTO, PhotoDTO } from '../shared/types.js';
 
 type Attrs = Record<string, string | number | boolean | null | undefined>;
@@ -28,6 +29,16 @@ function badge(text: string, className: string): HTMLSpanElement {
   return el('span', { className: `badge ${className}`, text });
 }
 
+function iconButton(
+  className: string,
+  attrs: Attrs,
+  icon: string,
+): HTMLButtonElement {
+  const button = el('button', { className, type: 'button', ...attrs });
+  button.insertAdjacentHTML('beforeend', icon);
+  return button;
+}
+
 export function photoCard(photo: PhotoDTO): HTMLLIElement {
   const badges: HTMLSpanElement[] = [];
   if (photo.isHdr) badges.push(badge('HDR', 'hdr'));
@@ -48,6 +59,7 @@ export function photoCard(photo: PhotoDTO): HTMLLIElement {
       className: 'photo-card',
       type: 'button',
       'data-action': 'open-lightbox',
+      'data-photo-id': photo.id,
       'data-full': photo.fullUrl,
       'data-thumb': photo.thumbUrl,
       'data-width': photo.width,
@@ -66,26 +78,42 @@ export function photoCard(photo: PhotoDTO): HTMLLIElement {
     if (photo.tier !== 'cover') {
       actions.push(el('button', { className: 'mini-button', type: 'button', 'data-action': 'set-tier', 'data-tier': 'cover', text: '设为封面' }));
     }
-    if (photo.tier !== 'featured') {
-      actions.push(el('button', { className: 'mini-button', type: 'button', 'data-action': 'set-tier', 'data-tier': 'featured', text: '精选' }));
-    }
-    if (photo.tier !== 'other') {
+    const featured = photo.tier === 'featured';
+    const label = featured ? '取消精选' : '设为精选';
+    actions.push(
+      iconButton(`mini-button icon-button${featured ? ' is-on' : ''}`, {
+        'data-action': 'set-tier',
+        'data-tier': featured ? 'other' : 'featured',
+        'aria-pressed': featured ? 'true' : 'false',
+        'aria-label': label,
+        title: label,
+      }, ICON_STAR),
+    );
+    if (photo.tier === 'cover') {
       actions.push(el('button', { className: 'mini-button', type: 'button', 'data-action': 'set-tier', 'data-tier': 'other', text: '其他' }));
     }
   }
   if (photo.canSetVisibility) {
+    const isPrivate = photo.visibility === 'private';
+    const label = isPrivate ? '设为公开' : '设为私密';
     actions.push(
-      el('button', {
-        className: 'mini-button',
-        type: 'button',
+      iconButton(`mini-button icon-button${isPrivate ? ' is-on' : ''}`, {
         'data-action': 'set-visibility',
-        'data-visibility': photo.visibility === 'public' ? 'private' : 'public',
-        text: photo.visibility === 'public' ? '设为私密' : '设为公开',
-      }),
+        'data-visibility': isPrivate ? 'public' : 'private',
+        'aria-pressed': isPrivate ? 'true' : 'false',
+        'aria-label': label,
+        title: label,
+      }, ICON_LOCK),
     );
   }
   if (photo.canDelete) {
-    actions.push(el('button', { className: 'mini-button danger', type: 'button', 'data-action': 'delete-photo', text: '删除' }));
+    actions.push(
+      iconButton('mini-button danger icon-button', {
+        'data-action': 'delete-photo',
+        'aria-label': '删除照片',
+        title: '删除照片',
+      }, ICON_TRASH),
+    );
   }
 
   const item = el(

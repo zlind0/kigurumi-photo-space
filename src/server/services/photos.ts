@@ -12,7 +12,7 @@ import {
 } from '../auth/permissions.js';
 import { AppError, conflict, forbidden, notFound, quotaExceeded } from '../http/errors.js';
 import { decodeCursor, encodeCursor } from '../../shared/cursor.js';
-import type { AlbumRow, PhotoRow } from './albums.js';
+import { syncAlbumVisibility, type AlbumRow, type PhotoRow } from './albums.js';
 import {
   coverPath,
   coverThumbPath,
@@ -265,12 +265,21 @@ export async function updatePhotoVisibility(
   db: Database,
   config: Config,
   input: PhotoMutationContext & { photo: PhotoRow; album: AlbumRow; visibility: Visibility },
-): Promise<PhotoRow> {
+): Promise<{ photo: PhotoRow; album: AlbumRow }> {
   const { photo, album, visibility } = input;
   if (!canSetPhotoVisibility(input.role)) throw forbidden('只有管理员可以修改照片可见度');
-  if (visibility === photo.visibility) return photo;
+  if (visibility === photo.visibility) return { photo, album };
   if (visibility === 'private' && photo.tier === 'cover' && album.visibility === 'public') {
-    throw conflict('COVER_MUST_BE_PUBLIC', '公开相册的封面必须是公开照片');
+    // 公开相册的封面必须公开；例外是这张封面已经是最后一张公开照片，
+    // 此时照片转私密后整个相册也会自动转私密。
+    const others = db.get<{ c: number }>(
+      "SELECT COUNT(*) AS c FROM photos WHERE album_id = ? AND id != ? AND deleted_at IS NULL AND visibility = 'public'",
+      album.id,
+      photo.id,
+    );
+    if ((others?.c ?? 0) > 0) {
+      throw conflict('COVER_MUST_BE_PUBLIC', '公开相册的封面必须是公开照片');
+    }
   }
   const fromRef = photoFileRef(photo, album);
   const toRef: PhotoFileRef = { ...fromRef, visibility };
@@ -279,6 +288,19 @@ export async function updatePhotoVisibility(
   const updated = { ...photo, visibility };
   if (updated.tier === 'cover') {
     await updateCoverLinks(config, album.dir_name, photoFileRef(updated, album));
+  }
+  const syncedAlbum = syncAlbumVisibility(db, album);
+  if (syncedAlbum.visibility !== album.visibility) {
+    audit(db, {
+      userId: input.userId,
+      sessionId: input.sessionId,
+      action: 'album.visibility',
+      ip: input.ip,
+      userAgent: input.userAgent,
+      targetType: 'album',
+      targetId: album.id,
+      detail: { from: album.visibility, to: syncedAlbum.visibility, reason: 'all-photos-private' },
+    });
   }
   audit(db, {
     userId: input.userId,
@@ -290,7 +312,7 @@ export async function updatePhotoVisibility(
     targetId: photo.id,
     detail: { from: photo.visibility, to: visibility },
   });
-  return updated;
+  return { photo: updated, album: syncedAlbum };
 }
 
 export async function deletePhoto(
@@ -308,6 +330,19 @@ export async function deletePhoto(
   }
   await removePhotoFiles(config, photoFileRef(photo, album));
   db.run('DELETE FROM photos WHERE id = ?', photo.id);
+  const syncedAlbum = syncAlbumVisibility(db, album);
+  if (syncedAlbum.visibility !== album.visibility) {
+    audit(db, {
+      userId: input.userId,
+      sessionId: input.sessionId,
+      action: 'album.visibility',
+      ip: input.ip,
+      userAgent: input.userAgent,
+      targetType: 'album',
+      targetId: album.id,
+      detail: { from: album.visibility, to: syncedAlbum.visibility, reason: 'all-photos-private' },
+    });
+  }
   audit(db, {
     userId: input.userId,
     sessionId: input.sessionId,

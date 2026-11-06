@@ -1,4 +1,4 @@
-import type { AlbumDTO, AlbumListResponse, PhotoDTO, PhotoListResponse } from '../shared/types.js';
+import type { AlbumDTO, AlbumListResponse, PhotoDTO, PhotoListResponse, Visibility } from '../shared/types.js';
 import { api, ApiError, toast } from './api.js';
 import { albumCard, photoCard } from './dom.js';
 import { closeDialog, confirmDialog, openDialog, setupBackdropClose } from './ui.js';
@@ -181,10 +181,20 @@ async function setVisibility(button: HTMLButtonElement): Promise<void> {
   if (!card || !id || !visibility) return;
   button.disabled = true;
   try {
-    const result = await api<{ photo: PhotoDTO }>(`/api/photos/${id}`, {
+    const result = await api<{ photo: PhotoDTO; albumVisibility?: Visibility }>(`/api/photos/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ visibility }),
     });
+    const page = document.querySelector<HTMLElement>('.album-page');
+    if (
+      result.albumVisibility &&
+      page?.dataset.albumVisibility &&
+      result.albumVisibility !== page.dataset.albumVisibility
+    ) {
+      // 相册因为所有照片转私密而自动转私密，刷新以更新头部状态。
+      window.location.reload();
+      return;
+    }
     if (result.photo.tier === 'cover') {
       window.location.reload();
       return;

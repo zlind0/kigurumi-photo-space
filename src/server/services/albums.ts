@@ -159,6 +159,25 @@ export function countVisiblePhotos(db: Database, albumId: number, role: Role): n
   return row?.c ?? 0;
 }
 
+/**
+ * 公开相册里允许存在私密照片。当相册内所有未删除的照片都是私密时，
+ * 相册本身自动转为私密，避免首页出现一个点进去什么都没有的公开相册。
+ * 只在“公开 → 私密”方向自动切换，手动设为公开的相册不会被覆盖。
+ */
+export function syncAlbumVisibility(db: Database, album: AlbumRow): AlbumRow {
+  if (album.visibility !== 'public') return album;
+  const row = db.get<{ total: number; hidden: number }>(
+    `SELECT COUNT(*) AS total,
+            COALESCE(SUM(CASE WHEN visibility = 'private' THEN 1 ELSE 0 END), 0) AS hidden
+       FROM photos WHERE album_id = ? AND deleted_at IS NULL`,
+    album.id,
+  );
+  if (!row || row.total === 0 || row.hidden < row.total) return album;
+  db.run("UPDATE albums SET visibility = 'private' WHERE id = ?", album.id);
+  invalidateAlbum(album.dir_name);
+  return { ...album, visibility: 'private' };
+}
+
 export interface AlbumListResult {
   albums: AlbumDTO[];
   nextCursor: string | null;

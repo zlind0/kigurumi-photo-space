@@ -23,6 +23,21 @@ export interface PhotoDTO {
   canSetVisibility: boolean;
 }
 
+export interface PhotoInfoDTO {
+  id: number;
+  originalName: string | null;
+  width: number;
+  height: number;
+  sizeBytes: number;
+  createdAt: number;
+  mime: string;
+  bitDepth: number;
+  isHdr: boolean;
+  hasAlpha: boolean;
+  exifPreserved: boolean;
+  exif: Record<string, unknown> | null;
+}
+
 export interface CoverDTO {
   photoId: number;
   thumbUrl: string;

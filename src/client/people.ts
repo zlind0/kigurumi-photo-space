@@ -3,12 +3,52 @@ import { api, ApiError, toast } from './api.js';
 import { albumCard } from './dom.js';
 import { closeDialog, openDialog, setupBackdropClose } from './ui.js';
 
+/**
+ * 人物区域优先一行显示；一行放不下时按 50px 下限算出需要的行数，
+ * 再把人物平均分配到各行，避免出现 9 + 1 这种尾巴。
+ */
+function setupPeopleGridLayout(grid: HTMLUListElement): void {
+  let frame = 0;
+
+  const apply = () => {
+    frame = 0;
+    const count = grid.children.length;
+    const width = grid.clientWidth;
+    if (count === 0 || width === 0) return;
+    const gap = Number.parseFloat(getComputedStyle(grid).columnGap) || 0;
+    const maxSize = 100;
+    const minSize = 50;
+    let columns = count;
+    const fitAtMax = Math.floor((width + gap) / (maxSize + gap));
+    if (fitAtMax < count) {
+      const fitAtMin = Math.max(1, Math.floor((width + gap) / (minSize + gap)));
+      const rows = Math.ceil(count / fitAtMin);
+      columns = Math.ceil(count / rows);
+    }
+    const next = String(columns);
+    if (grid.style.getPropertyValue('--people-columns') !== next) {
+      grid.style.setProperty('--people-columns', next);
+    }
+  };
+
+  const schedule = () => {
+    if (frame) return;
+    frame = requestAnimationFrame(apply);
+  };
+
+  apply();
+  new ResizeObserver(schedule).observe(grid);
+  window.addEventListener('resize', schedule);
+}
+
 function setupHomePeopleFilter(): void {
   const grid = document.querySelector<HTMLUListElement>('#people-grid');
   const albumGrid = document.querySelector<HTMLUListElement>('#album-grid');
   if (!grid || !albumGrid) return;
+  setupPeopleGridLayout(grid);
   const buttons = Array.from(grid.querySelectorAll<HTMLButtonElement>('[data-person-id]'));
   if (buttons.length === 0) return;
+  const allButton = grid.querySelector<HTMLButtonElement>('[data-action="select-all-people"]');
   const empty = document.querySelector<HTMLElement>('#people-empty');
   const newCard = albumGrid.querySelector<HTMLElement>('.album-new')?.closest('li') ?? null;
   let selected: Set<number> | null = null;
@@ -20,6 +60,11 @@ function setupHomePeopleFilter(): void {
       const active = selected === null || selected.has(id);
       button.classList.toggle('is-selected', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    }
+    if (allButton) {
+      const all = selected === null;
+      allButton.classList.toggle('is-selected', all);
+      allButton.setAttribute('aria-pressed', all ? 'true' : 'false');
     }
   };
 

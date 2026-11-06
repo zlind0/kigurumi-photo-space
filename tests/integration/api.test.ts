@@ -258,7 +258,7 @@ describe('API integration', () => {
     expect(viewerResponse.statusCode).toBe(200);
   });
 
-  it('refuses to make a public album cover private', async () => {
+  it('turns the album private when the last public photo becomes private', async () => {
     const makePublic = await app.inject({
       method: 'PATCH',
       url: `/api/albums/${albumId}`,
@@ -272,8 +272,18 @@ describe('API integration', () => {
       headers: { ...authHeaders(adminCookie), 'content-type': 'application/json' },
       payload: { visibility: 'private' },
     });
-    expect(patch.statusCode).toBe(409);
-    expect(patch.json().error.code).toBe('COVER_MUST_BE_PUBLIC');
+    expect(patch.statusCode).toBe(200);
+    expect(patch.json().photo.visibility).toBe('private');
+    expect(patch.json().albumVisibility).toBe('private');
+    const publicResponse = await app.inject({ method: 'GET', url: `/api/albums/${albumId}` });
+    expect(publicResponse.statusCode).toBe(404);
+    const adminResponse = await app.inject({
+      method: 'GET',
+      url: `/api/albums/${albumId}`,
+      headers: { cookie: adminCookie },
+    });
+    expect(adminResponse.statusCode).toBe(200);
+    expect(adminResponse.json().album.visibility).toBe('private');
   });
 
   it('deletes a photo', async () => {
@@ -283,7 +293,11 @@ describe('API integration', () => {
       headers: authHeaders(adminCookie),
     });
     expect(response.statusCode).toBe(204);
-    const list = await app.inject({ method: 'GET', url: `/api/albums/${albumId}/photos` });
+    const list = await app.inject({
+      method: 'GET',
+      url: `/api/albums/${albumId}/photos`,
+      headers: { cookie: adminCookie },
+    });
     expect(list.json().items).toHaveLength(1);
   });
 

@@ -3,7 +3,7 @@ import { rm } from 'node:fs/promises';
 import type { FastifyInstance } from 'fastify';
 import type { Config } from '../config.js';
 import type { Database } from '../db/index.js';
-import type { PhotoListResponse, Tier, Visibility } from '../../shared/types.js';
+import type { PhotoInfoDTO, PhotoListResponse, Tier, Visibility } from '../../shared/types.js';
 import { clampLimit } from '../../shared/cursor.js';
 import { canUpload } from '../auth/permissions.js';
 import { assertSameOrigin } from '../http/csrf.js';
@@ -54,6 +54,37 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
     );
     reply.header('cache-control', 'private, no-store');
     return result satisfies PhotoListResponse;
+  });
+
+  app.get('/api/photos/:id/info', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { photo } = requireVisiblePhoto(db, parseId(id), request.role);
+    let exif: Record<string, unknown> | null = null;
+    if (photo.exif_json) {
+      try {
+        const parsed = JSON.parse(photo.exif_json) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          exif = parsed as Record<string, unknown>;
+        }
+      } catch {
+        exif = null;
+      }
+    }
+    reply.header('cache-control', 'private, no-store');
+    return {
+      id: photo.id,
+      originalName: photo.original_name,
+      width: photo.width,
+      height: photo.height,
+      sizeBytes: photo.size_bytes,
+      createdAt: photo.created_at,
+      mime: photo.mime,
+      bitDepth: photo.bit_depth,
+      isHdr: photo.is_hdr !== 0,
+      hasAlpha: photo.has_alpha !== 0,
+      exifPreserved: photo.exif_preserved !== 0,
+      exif,
+    } satisfies PhotoInfoDTO;
   });
 
   app.post('/api/albums/:id/photos', async (request, reply) => {
@@ -178,6 +209,7 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
     const found = requireVisiblePhoto(db, parseId(id), request.role);
     const body = request.body as { tier?: unknown; visibility?: unknown } | null;
     let photo = found.photo;
+    let album = found.album;
     if (body?.tier !== undefined) {
       if (body.tier !== 'cover' && body.tier !== 'featured' && body.tier !== 'other') {
         throw badRequest('tier 必须是 cover、featured 或 other');
@@ -197,9 +229,9 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
       if (body.visibility !== 'public' && body.visibility !== 'private') {
         throw badRequest('visibility 必须是 public 或 private');
       }
-      photo = await updatePhotoVisibility(db, config, {
+      const result = await updatePhotoVisibility(db, config, {
         photo,
-        album: found.album,
+        album,
         visibility: body.visibility as Visibility,
         userId: request.auth.user.id,
         role: request.role,
@@ -207,9 +239,14 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
         ip: request.ip,
         userAgent: request.headers['user-agent'] ?? null,
       });
+      photo = result.photo;
+      album = result.album;
     }
     reply.header('cache-control', 'private, no-store');
-    return { photo: photoToDTO(photo, found.album, request.role, request.auth.session.id) };
+    return {
+      photo: photoToDTO(photo, album, request.role, request.auth.session.id),
+      albumVisibility: album.visibility,
+    };
   });
 
   app.delete('/api/photos/:id', async (request, reply) => {
