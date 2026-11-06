@@ -910,11 +910,19 @@ textarea:focus {
   background: #000;
   color: #fff;
   overflow: hidden;
+  /* 放大交给手机浏览器的默认页面缩放；显式允许缩放和拖拽平移，避免被当成不可滚动区域。 */
+  touch-action: pan-x pan-y pinch-zoom;
+  overscroll-behavior: auto;
 }
 
 .lightbox::backdrop {
   background: #000;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
+}
+
+/* .dialog:modal 默认用 contain 阻止背景滚动，但灯箱需要保留放大后的拖拽平移。 */
+.lightbox:modal {
+  overscroll-behavior: auto;
 }
 
 .lightbox[open] {
@@ -988,6 +996,10 @@ textarea:focus {
   object-fit: contain;
   opacity: 0;
   transition: opacity 320ms ease;
+  /* 不要触发浏览器原生的图片拖拽，否则会抢走放大后的平移手势。 */
+  -webkit-user-drag: none;
+  user-select: none;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 .lightbox-figure img.is-loaded {

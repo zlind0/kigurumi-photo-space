@@ -114,8 +114,21 @@ export function setupLightbox(): void {
   let loadToken = 0;
   let glowTimer: number | undefined;
   const infoCache = new Map<number, PhotoInfoDTO>();
+  const preloaded = new Set<string>();
 
   const current = (): LightboxItem | null => items[index] ?? null;
+
+  // 当前照片显示后，用低优先级提前把下一张全图放进浏览器缓存。
+  // 这样用户切到下一张时通常可以直接命中缓存，弱网下也不会和当前照片抢带宽。
+  const preload = (item: LightboxItem | undefined): void => {
+    if (!item || !item.full || preloaded.has(item.full)) return;
+    preloaded.add(item.full);
+    const preloadImage = new Image();
+    preloadImage.decoding = 'async';
+    preloadImage.fetchPriority = 'low';
+    preloadImage.onerror = () => preloaded.delete(item.full);
+    preloadImage.src = item.full;
+  };
 
   const beginLoading = (): void => {
     window.clearTimeout(glowTimer);
@@ -257,11 +270,13 @@ export function setupLightbox(): void {
         if (token !== loadToken) return;
         endLoading();
         image.classList.add('is-loaded');
+        preload(items[(index + 1) % items.length]);
       },
       () => {
         if (token !== loadToken) return;
         endLoading();
         toast('图片加载失败，请重试', 'error');
+        preload(items[(index + 1) % items.length]);
       },
     );
     if (infoWrap?.matches(':hover, :focus-within, .is-open')) void loadInfo();

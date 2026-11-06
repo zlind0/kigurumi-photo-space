@@ -168,7 +168,7 @@ ${options.body}
     <button type="button" class="lightbox-nav prev" data-action="lightbox-prev" aria-label="上一张">${ICON_CHEVRON_LEFT}</button>
     <figure class="lightbox-figure">
       <div class="lightbox-placeholder" aria-hidden="true"></div>
-      <img id="lightbox-image" alt="" decoding="async">
+      <img id="lightbox-image" alt="" decoding="async" draggable="false">
     </figure>
     <button type="button" class="lightbox-nav next" data-action="lightbox-next" aria-label="下一张">${ICON_CHEVRON_RIGHT}</button>
   </div>
