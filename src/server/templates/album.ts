@@ -4,8 +4,6 @@ import { renderLayout, type AssetManifest } from './layout.js';
 
 export interface AlbumPageOptions {
   album: AlbumDTO;
-  cover: PhotoDTO | null;
-  featured: PhotoDTO[];
   photos: PhotoDTO[];
   nextCursor: string | null;
   permissions: PermissionsDTO;
@@ -54,20 +52,7 @@ function photoCard(photo: PhotoDTO, index: number, eager = false): string {
 }
 
 export function renderAlbumPage(options: AlbumPageOptions): string {
-  const { album, cover, featured, photos, permissions } = options;
-  const coverBlock = cover
-    ? `<button class="cover-photo" type="button" data-action="open-lightbox" data-full="${escapeHtml(cover.fullUrl)}" data-thumb="${escapeHtml(cover.thumbUrl)}" data-width="${cover.width}" data-height="${cover.height}" data-caption="${escapeHtml(cover.originalName ?? '')}" aria-label="查看封面大图">
-        <img src="${escapeHtml(cover.thumbUrl)}" alt="${escapeHtml(album.name)} 的封面" width="600" height="600" fetchpriority="high">
-        ${cover.isHdr ? '<span class="badge hdr">HDR</span>' : ''}
-      </button>`
-    : `<div class="cover-photo cover-empty"><span>还没有封面照片</span></div>`;
-  const featuredBlock =
-    featured.length > 0
-      ? `<section class="album-section" aria-labelledby="featured-title">
-  <h2 id="featured-title">精选</h2>
-  <ul class="photo-grid">${featured.map((photo, index) => photoCard(photo, index)).join('')}</ul>
-</section>`
-      : '';
+  const { album, photos, permissions } = options;
   const allBlock =
     photos.length > 0
       ? `<section class="album-section" aria-labelledby="all-title">
@@ -84,19 +69,16 @@ export function renderAlbumPage(options: AlbumPageOptions): string {
     : '';
   const body = `<article class="album-page" data-album-id="${album.id}" data-album-dir="${escapeHtml(album.dir)}" data-album-visibility="${album.visibility}">
   <header class="album-header">
-    <div>
+    <div class="album-heading">
       <p class="breadcrumb"><a href="/">相册</a> / <span>${escapeHtml(album.name)}</span></p>
       <h1>${escapeHtml(album.name)} ${album.visibility === 'private' ? '<span class="badge private">私密</span>' : ''}</h1>
-      <p class="muted">${album.photoCount} 张照片 · 创建于 ${new Date(album.createdAt).toLocaleDateString('zh-CN')}</p>
+      <p class="album-stats">${album.photoCount} 张照片 · 创建于 ${new Date(album.createdAt).toLocaleDateString('zh-CN')}</p>
     </div>
     <div class="album-header-actions">
       ${permissions.canUpload ? `<a class="button primary" href="/upload?album=${album.id}">上传照片</a>` : ''}
       ${adminBar}
     </div>
   </header>
-  <section class="cover-section" aria-label="相册封面">${coverBlock}</section>
-  ${featuredBlock}
-  <hr class="soft-divider">
   ${allBlock}
 </article>`;
   return renderLayout({

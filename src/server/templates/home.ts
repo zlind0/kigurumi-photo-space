@@ -15,19 +15,26 @@ function albumCard(album: AlbumDTO, index: number, role: Role): string {
   const image = cover
     ? `<img src="${escapeHtml(cover.thumbUrl)}" alt="${escapeHtml(album.name)} 的封面" width="600" height="600" ${index === 0 ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"'}>`
     : `<span class="album-placeholder" aria-hidden="true">暂无照片</span>`;
+  const backLayer = cover
+    ? `<span class="album-print-inner" style="background-image:url('${escapeHtml(cover.thumbUrl)}')"></span>`
+    : '<span class="album-print-inner"></span>';
   const privateBadge =
     album.visibility === 'private' && role !== 'public'
       ? '<span class="badge private">私密</span>'
       : '';
   return `<li class="album-item">
   <a class="album-card" href="/a/${encodeURIComponent(album.dir)}" data-album-id="${album.id}">
-    <span class="album-frame">
-      <span class="album-photo">${image}</span>
-      <span class="album-spine" aria-hidden="true"></span>
+    <span class="album-stack">
+      <span class="album-print album-print-back" aria-hidden="true">${backLayer}</span>
+      <span class="album-print album-print-mid" aria-hidden="true">${backLayer}</span>
+      <span class="album-print album-print-front"><span class="album-print-inner">${image}</span></span>
     </span>
     <span class="album-meta">
-      <span class="album-name">${escapeHtml(album.name)}</span>
-      <span class="album-count">${album.photoCount} 张照片 ${privateBadge}</span>
+      <span class="album-text">
+        <span class="album-name">${escapeHtml(album.name)}</span>
+        <span class="album-count">${album.photoCount} 张照片 ${privateBadge}</span>
+      </span>
+      <span class="album-chevron" aria-hidden="true">›</span>
     </span>
   </a>
 </li>`;
@@ -39,8 +46,13 @@ export function renderHomePage(options: HomePageOptions): string {
   const newCard = canCreate
     ? `<li class="album-item">
   <button class="album-card album-new" type="button" data-action="new-album">
-    <span class="album-frame"><span class="plus" aria-hidden="true">+</span></span>
-    <span class="album-meta"><span class="album-name">新建相册</span><span class="album-count">上传一组照片</span></span>
+    <span class="album-stack">
+      <span class="album-print album-print-front"><span class="plus" aria-hidden="true">+</span></span>
+    </span>
+    <span class="album-meta">
+      <span class="album-text"><span class="album-name">新建相册</span><span class="album-count">上传一组照片</span></span>
+      <span class="album-chevron" aria-hidden="true">›</span>
+    </span>
   </button>
 </li>`
     : '';

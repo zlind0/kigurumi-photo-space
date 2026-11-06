@@ -107,7 +107,7 @@ export function renderLayout(options: LayoutOptions): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark">
 <meta name="description" content="${escapeHtml(options.description ?? '私密照片分享空间')}">
 <title>${escapeHtml(options.title)}</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">

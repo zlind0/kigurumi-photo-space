@@ -12,12 +12,11 @@ import {
   albumToDTO,
   countVisiblePhotos,
   getAlbumByDir,
-  getCoverPhoto,
   listAlbumOptions,
   listAlbums,
   requireVisibleAlbum,
 } from '../services/albums.js';
-import { listFeatured, listPhotos, photoToDTO } from '../services/photos.js';
+import { listPhotos, photoToDTO } from '../services/photos.js';
 import { diskInfo } from '../services/storage.js';
 import { renderHomePage } from '../templates/home.js';
 import { renderAlbumPage } from '../templates/album.js';
@@ -122,10 +121,6 @@ export function registerPageRoutes(
     const { albumDir } = request.params as { albumDir: string };
     const album = requireVisibleAlbum(getAlbumByDir(db, albumDir), request.role);
     const sessionId = request.auth?.session.id ?? null;
-    const cover = getCoverPhoto(db, album.id, request.role);
-    const featured = listFeatured(db, album, request.role).map((photo) =>
-      photoToDTO(photo, album, request.role, sessionId),
-    );
     const photos = listPhotos(db, album, request.role, undefined, 60, sessionId);
     const permissions: PermissionsDTO = {
       canUpload: canUpload(request.role),
@@ -150,8 +145,6 @@ export function registerPageRoutes(
             canUpload: permissions.canUpload,
             canManage: permissions.canManageAlbum,
           },
-          cover: cover ? photoToDTO(cover, album, request.role, sessionId) : null,
-          featured,
           photos: photos.items,
           nextCursor: photos.nextCursor,
           permissions,
@@ -227,7 +220,7 @@ export function registerPageRoutes(
       .header('cache-control', 'private, no-cache')
       .type('text/html; charset=utf-8')
       .send(
-        `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>登录 · Kig Photo Space</title><body style="font-family:system-ui;max-width:24rem;margin:4rem auto;padding:0 1rem"><h1>登录</h1><p>输入访问密码。没有用户名。</p><form method="post" action="/login"><label>密码 <input type="password" name="password" autocomplete="current-password" minlength="8" maxlength="128" required autofocus></label><p><button type="submit">登录</button></p></form><p><a href="/">返回首页</a></p></body></html>`,
+        `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>登录 · Kig Photo Space</title><body style="font-family:system-ui,-apple-system,'PingFang SC',sans-serif;max-width:24rem;margin:4rem auto;padding:0 1rem;background:#0c0c0e;color:#f4f2ee"><h1>登录</h1><p style="color:#9b9791">输入访问密码。没有用户名。</p><form method="post" action="/login"><label>密码 <input type="password" name="password" autocomplete="current-password" minlength="8" maxlength="128" required autofocus style="display:block;width:100%;margin-top:.35rem;padding:.55rem .7rem;border:1px solid #2d2d32;border-radius:8px;background:#17171a;color:#f4f2ee"></label><p><button type="submit" style="padding:.55rem 1rem;border:1px solid #e6b98c;border-radius:999px;background:#e6b98c;color:#1a120a;font-weight:600;cursor:pointer">登录</button></p></form><p><a href="/" style="color:#e6b98c">返回首页</a></p></body></html>`,
       );
   });
 

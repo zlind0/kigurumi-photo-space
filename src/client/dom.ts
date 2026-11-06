@@ -117,20 +117,31 @@ export function albumCard(album: AlbumDTO, index: number): HTMLLIElement {
           : { loading: 'lazy', decoding: 'async' }),
       })
     : el('span', { className: 'album-placeholder', text: '暂无照片' });
+  const backLayer = (): HTMLSpanElement => {
+    const inner = el('span', { className: 'album-print-inner' });
+    if (album.cover) inner.style.backgroundImage = `url("${album.cover.thumbUrl}")`;
+    return inner;
+  };
   const meta = el('span', { className: 'album-meta' }, [
-    el('span', { className: 'album-name', text: album.name }),
-    el('span', { className: 'album-count' }, [
-      `${album.photoCount} 张照片 `,
-      ...(album.visibility === 'private' ? [badge('私密', 'private')] : []),
+    el('span', { className: 'album-text' }, [
+      el('span', { className: 'album-name', text: album.name }),
+      el('span', { className: 'album-count' }, [
+        `${album.photoCount} 张照片 `,
+        ...(album.visibility === 'private' ? [badge('私密', 'private')] : []),
+      ]),
     ]),
+    el('span', { className: 'album-chevron', 'aria-hidden': 'true', text: '›' }),
   ]);
   const link = el(
     'a',
     { className: 'album-card', href: `/a/${encodeURIComponent(album.dir)}`, 'data-album-id': album.id },
     [
-      el('span', { className: 'album-frame' }, [
-        el('span', { className: 'album-photo' }, [image]),
-        el('span', { className: 'album-spine', 'aria-hidden': 'true' }),
+      el('span', { className: 'album-stack' }, [
+        el('span', { className: 'album-print album-print-back', 'aria-hidden': 'true' }, [backLayer()]),
+        el('span', { className: 'album-print album-print-mid', 'aria-hidden': 'true' }, [backLayer()]),
+        el('span', { className: 'album-print album-print-front' }, [
+          el('span', { className: 'album-print-inner' }, [image]),
+        ]),
       ]),
       meta,
     ],
