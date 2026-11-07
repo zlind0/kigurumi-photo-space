@@ -28,16 +28,24 @@ export async function fileReader(path: string): Promise<Reader> {
 
 export async function validateAvifFile(
   path: string,
-  kind: 'full' | 'thumb',
+  kind: 'full' | 'thumb' | 'preview',
   config: Config,
 ): Promise<AvifInfo> {
   const reader = await fileReader(path);
   try {
     return await validateAvif(reader, {
       kind,
-      maxDimension: config.maxImageDimension,
-      maxPixels: config.maxImagePixels,
-      maxBytes: kind === 'full' ? config.maxFullBytes : config.maxThumbBytes,
+      maxDimension: kind === 'preview' ? config.previewMaxDimension : config.maxImageDimension,
+      maxPixels:
+        kind === 'preview'
+          ? config.previewMaxDimension * config.previewMaxDimension
+          : config.maxImagePixels,
+      maxBytes:
+        kind === 'full'
+          ? config.maxFullBytes
+          : kind === 'preview'
+            ? config.maxPreviewBytes
+            : config.maxThumbBytes,
     });
   } catch (error) {
     if (error instanceof AvifValidationError) {
@@ -49,7 +57,9 @@ export async function validateAvifFile(
             ? 'UNSUPPORTED_FORMAT'
             : kind === 'thumb'
               ? 'INVALID_THUMBNAIL'
-              : 'INVALID_AVIF';
+              : kind === 'preview'
+                ? 'INVALID_PREVIEW'
+                : 'INVALID_AVIF';
       throw new AppError(status, code, error.message);
     }
     throw error;

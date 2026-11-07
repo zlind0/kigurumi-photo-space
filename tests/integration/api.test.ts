@@ -407,6 +407,40 @@ describe('API integration', () => {
     expect(reused.statusCode).toBe(201);
   });
 
+  it('stores and serves a preview image alongside the full image', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/albums',
+      headers: { ...authHeaders(adminCookie), 'content-type': 'application/json' },
+      payload: { name: '预览图测试' },
+    });
+    expect(created.statusCode).toBe(201);
+    const previewAlbumId = created.json().album.id as number;
+    const body = multipart(
+      { meta: JSON.stringify({ originalName: 'preview.avif' }) },
+      [
+        { field: 'full', filename: 'full.avif', contentType: 'image/avif', data: fixture('hdr.avif') },
+        { field: 'preview', filename: 'preview.avif', contentType: 'image/avif', data: fixture('sdr.avif') },
+        { field: 'thumb', filename: 'thumb.avif', contentType: 'image/avif', data: fixture('thumb.avif') },
+      ],
+    );
+    const uploaded = await app.inject({
+      method: 'POST',
+      url: `/api/albums/${previewAlbumId}/photos`,
+      headers: { ...authHeaders(adminCookie), ...body.headers },
+      payload: body.payload,
+    });
+    expect(uploaded.statusCode).toBe(201);
+    const photo = uploaded.json().photo;
+    expect(photo.previewUrl).toContain('.preview.avif');
+    const preview = await app.inject({ method: 'GET', url: photo.previewUrl });
+    expect(preview.statusCode).toBe(200);
+    expect(preview.rawPayload.byteLength).toBe(fixture('sdr.avif').byteLength);
+    const full = await app.inject({ method: 'GET', url: photo.fullUrl });
+    expect(full.statusCode).toBe(200);
+    expect(full.rawPayload.byteLength).toBe(fixture('hdr.avif').byteLength);
+  });
+
   it('reports health', async () => {
     const response = await app.inject({ method: 'GET', url: '/healthz' });
     expect(response.statusCode).toBe(200);

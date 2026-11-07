@@ -29,6 +29,7 @@ export interface PhotoRow {
   height: number;
   size_bytes: number;
   thumb_size_bytes: number;
+  preview_size_bytes: number;
   tier: 'cover' | 'featured' | 'other';
   visibility: Visibility;
   original_name: string | null;

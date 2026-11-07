@@ -45,6 +45,10 @@ export function thumbPath(config: Config, ref: PhotoFileRef): string {
   return join(tierPath(config, ref.albumDir, ref.tier, ref.visibility), `${ref.md5}.thumb.avif`);
 }
 
+export function previewPath(config: Config, ref: PhotoFileRef): string {
+  return join(tierPath(config, ref.albumDir, ref.tier, ref.visibility), `${ref.md5}.preview.avif`);
+}
+
 export function coverPath(config: Config, albumDir: string): string {
   return join(albumPath(config, albumDir), 'cover.avif');
 }
@@ -138,13 +142,16 @@ export async function movePhotoFiles(
 ): Promise<void> {
   const fromFull = fullPath(config, from);
   const fromThumb = thumbPath(config, from);
+  const fromPreview = previewPath(config, from);
   const toFull = fullPath(config, to);
   const toThumb = thumbPath(config, to);
+  const toPreview = previewPath(config, to);
   if (fromFull === toFull) return;
   await mkdir(dirname(toFull), { recursive: true, mode: 0o750 });
   for (const [source, target] of [
     [fromFull, toFull],
     [fromThumb, toThumb],
+    [fromPreview, toPreview],
   ] as const) {
     if (!(await fileExists(source))) continue;
     if (await fileExists(target)) {
@@ -158,6 +165,7 @@ export async function movePhotoFiles(
 export async function removePhotoFiles(config: Config, ref: PhotoFileRef): Promise<void> {
   await rm(fullPath(config, ref), { force: true });
   await rm(thumbPath(config, ref), { force: true });
+  await rm(previewPath(config, ref), { force: true });
 }
 
 export async function updateCoverLinks(

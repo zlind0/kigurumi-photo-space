@@ -46,6 +46,7 @@ function formatSize(bytes: number): string {
 function uploadPhoto(
   albumId: number,
   full: Blob,
+  preview: Blob,
   thumb: Blob,
   meta: unknown,
   onProgress: (fraction: number) => void,
@@ -71,6 +72,7 @@ function uploadPhoto(
     xhr.addEventListener('abort', () => reject(new Error('上传已取消')));
     const form = new FormData();
     form.append('full', full, 'full.avif');
+    form.append('preview', preview, 'preview.avif');
     form.append('thumb', thumb, 'thumb.avif');
     form.append('meta', JSON.stringify(meta));
     xhr.send(form);
@@ -127,6 +129,8 @@ function setupUpload(): void {
     maxDimension: 10000,
     maxPixels: 100_000_000,
     fullQuality: 60,
+    previewQuality: 50,
+    previewMaxDimension: 3000,
     thumbQuality: 50,
     speed: 8,
   };
@@ -207,6 +211,7 @@ function setupUpload(): void {
     if (item.status === 'cancelled') return;
     item.result = result;
     const fullBlob = new Blob([result.full], { type: 'image/avif' });
+    const previewBlob = new Blob([result.preview], { type: 'image/avif' });
     const thumbBlob = new Blob([result.thumb], { type: 'image/avif' });
     const fullSize = fullBlob.size;
     item.thumb.src = URL.createObjectURL(thumbBlob);
@@ -218,7 +223,7 @@ function setupUpload(): void {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       if ((item.status as string) === 'cancelled') return;
       try {
-        const response = await uploadPhoto(id, fullBlob, thumbBlob, result.meta, (fraction) => {
+        const response = await uploadPhoto(id, fullBlob, previewBlob, thumbBlob, result.meta, (fraction) => {
           item.progressNode.value = Math.round(fraction * 100);
         });
         item.progressNode.value = 100;

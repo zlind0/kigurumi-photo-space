@@ -10,7 +10,7 @@ import { getAlbumByDir, type AlbumRow } from '../services/albums.js';
 import { getCachedAlbum } from '../services/album-cache.js';
 import { albumPath, peopleDir } from '../services/storage.js';
 
-const FILE_RE = /^[a-f0-9]{32}(\.thumb)?\.avif$/;
+const FILE_RE = /^[a-f0-9]{32}(\.thumb|\.preview)?\.avif$/;
 const COVER_RE = /^cover(\.thumb)?\.avif$/;
 const PERSON_AVATAR_RE = /^[a-f0-9]{32}\.avif$/;
 
@@ -25,18 +25,28 @@ export function registerMediaRoutes(app: FastifyInstance, db: Database, config: 
     album: AlbumRow,
     relativePath: string,
     isPrivate: boolean,
+    fallbackPath?: string,
   ): Promise<FastifyReply> {
     const root = albumPath(config, album.dir_name);
-    const target = resolve(root, relativePath);
+    let target = resolve(root, relativePath);
     if (target !== root && !target.startsWith(root + sep)) throw notFound();
     let info;
+    let usedFallback = false;
     try {
       info = await lstat(target);
     } catch {
-      throw notFound();
+      if (!fallbackPath) throw notFound();
+      target = resolve(root, fallbackPath);
+      if (target !== root && !target.startsWith(root + sep)) throw notFound();
+      try {
+        info = await lstat(target);
+      } catch {
+        throw notFound();
+      }
+      usedFallback = true;
     }
     if (!info.isFile() || info.isSymbolicLink()) throw notFound();
-    const etag = `"${relativePath.replace(/[^a-z0-9.]/gi, '')}-${info.size}"`;
+    const etag = `"${relativePath.replace(/[^a-z0-9.]/gi, '')}-${info.size}${usedFallback ? '-fallback' : ''}"`;
     const ifNoneMatch = request.headers['if-none-match'];
     if (ifNoneMatch && ifNoneMatch.split(',').some((value) => value.trim() === etag)) {
       return reply.code(304).header('etag', etag).send();
@@ -45,7 +55,12 @@ export function registerMediaRoutes(app: FastifyInstance, db: Database, config: 
       .header('content-type', 'image/avif')
       .header('content-length', String(info.size))
       .header('etag', etag)
-      .header('cache-control', `${isPrivate ? 'private' : 'public'}, max-age=31536000, immutable`)
+      .header(
+        'cache-control',
+        usedFallback
+          ? 'private, no-store'
+          : `${isPrivate ? 'private' : 'public'}, max-age=31536000, immutable`,
+      )
       .header('x-content-type-options', 'nosniff');
     if (request.method === 'HEAD') {
       return reply.send();
@@ -103,6 +118,9 @@ export function registerMediaRoutes(app: FastifyInstance, db: Database, config: 
     if (!album || !canViewAlbum(album, request.role)) throw notFound();
     if (tier === 'hidden' && request.role === 'public') throw notFound();
     const isPrivate = album.visibility === 'private' || tier === 'hidden';
-    return serve(request, reply, album, join(tier, file), isPrivate);
+    const fallback = file.endsWith('.preview.avif')
+      ? join(tier, file.replace(/\.preview\.avif$/, '.avif'))
+      : undefined;
+    return serve(request, reply, album, join(tier, file), isPrivate, fallback);
   });
 }

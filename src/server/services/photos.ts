@@ -21,6 +21,7 @@ import {
   fullPath,
   movePhotoFiles,
   placeFile,
+  previewPath,
   removePhotoFiles,
   thumbPath,
   updateCoverLinks,
@@ -57,6 +58,7 @@ export function photoToDTO(
     createdAt: photo.created_at,
     originalName: photo.original_name,
     thumbUrl: `/m/${dir}/${tierDir}/${photo.md5}.thumb.avif`,
+    previewUrl: `/m/${dir}/${tierDir}/${photo.md5}.preview.avif`,
     fullUrl: `/m/${dir}/${tierDir}/${photo.md5}.avif`,
     bitDepth: photo.bit_depth,
     isHdr: photo.is_hdr !== 0,
@@ -359,8 +361,10 @@ export interface CreatePhotoInput {
   album: AlbumRow;
   fullTmpPath: string;
   thumbTmpPath: string;
+  previewTmpPath: string | null;
   fullInfo: AvifInfo;
   thumbInfo: AvifInfo;
+  previewInfo: AvifInfo | null;
   md5: string;
   thumbMd5: string;
   originalName: string | null;
@@ -415,9 +419,12 @@ export async function createPhoto(
     throw quotaExceeded('服务器磁盘空间不足');
   }
   const total = db.get<{ total: number }>(
-    'SELECT COALESCE(SUM(size_bytes + thumb_size_bytes), 0) AS total FROM photos WHERE deleted_at IS NULL',
+    'SELECT COALESCE(SUM(size_bytes + thumb_size_bytes + preview_size_bytes), 0) AS total FROM photos WHERE deleted_at IS NULL',
   );
-  const incoming = (await stat(input.fullTmpPath)).size + (await stat(input.thumbTmpPath)).size;
+  const incoming =
+    (await stat(input.fullTmpPath)).size +
+    (await stat(input.thumbTmpPath)).size +
+    (input.previewTmpPath ? (await stat(input.previewTmpPath)).size : 0);
   if ((total?.total ?? 0) + incoming > config.maxTotalBytes) {
     throw quotaExceeded('站点存储配额已满');
   }
@@ -434,6 +441,7 @@ export async function createPhoto(
   };
   const targetFull = fullPath(config, ref);
   const targetThumb = thumbPath(config, ref);
+  const targetPreview = previewPath(config, ref);
 
   const global = db.get<PhotoRow & { dir_name: string }>(
     `SELECT p.*, a.dir_name FROM photos p JOIN albums a ON a.id = p.album_id
@@ -465,23 +473,38 @@ export async function createPhoto(
         visibility: globalThumb.visibility,
       })
     : null;
+  const existingPreview = global
+    ? previewPath(config, {
+        albumDir: global.dir_name,
+        md5: global.md5,
+        thumbMd5: global.thumb_md5,
+        tier: global.tier,
+        visibility: global.visibility,
+      })
+    : null;
 
   let fullPlaced = false;
   let thumbPlaced = false;
+  let previewPlaced = false;
   try {
     await placeFile(config, input.fullTmpPath, targetFull, existingFull);
     fullPlaced = true;
     await placeFile(config, input.thumbTmpPath, targetThumb, existingThumb);
     thumbPlaced = true;
+    if (input.previewTmpPath) {
+      await placeFile(config, input.previewTmpPath, targetPreview, existingPreview);
+      previewPlaced = true;
+    }
     const fullStat = await stat(targetFull);
     const thumbStat = await stat(targetThumb);
+    const previewStat = previewPlaced ? await stat(targetPreview) : null;
     const now = Date.now();
     const result = db.run(
       `INSERT INTO photos
-        (album_id, md5, thumb_md5, width, height, size_bytes, thumb_size_bytes, tier, visibility,
+        (album_id, md5, thumb_md5, width, height, size_bytes, thumb_size_bytes, preview_size_bytes, tier, visibility,
          original_name, mime, exif_json, created_at, uploaded_by, upload_session_id,
          bit_depth, is_hdr, has_alpha, color_primaries, transfer_characteristics, matrix_coefficients, exif_preserved)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'image/avif', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'image/avif', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       album.id,
       input.md5,
       input.thumbMd5,
@@ -489,6 +512,7 @@ export async function createPhoto(
       input.fullInfo.height,
       fullStat.size,
       thumbStat.size,
+      previewStat?.size ?? 0,
       tier,
       visibility,
       input.originalName,
@@ -529,8 +553,7 @@ export async function createPhoto(
     });
     return { photo, deduped: false };
   } catch (error) {
-    if (fullPlaced) await removePhotoFiles(config, ref);
-    if (thumbPlaced) await removePhotoFiles(config, ref);
+    if (fullPlaced || thumbPlaced || previewPlaced) await removePhotoFiles(config, ref);
     throw error;
   }
 }

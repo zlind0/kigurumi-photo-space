@@ -44,6 +44,40 @@ function toneMapChannel(value: number, transfer: number): number {
   return Math.round(Math.max(0, Math.min(1, value)) * 255);
 }
 
+export function toneMapRgba16(
+  data: Uint16Array,
+  width: number,
+  height: number,
+  transfer: number,
+): ImageData {
+  const out = new Uint8ClampedArray(width * height * 4);
+  for (let i = 0; i < width * height; i++) {
+    const index = i * 4;
+    out[index] = toneMapChannel((data[index] ?? 0) / 65535, transfer);
+    out[index + 1] = toneMapChannel((data[index + 1] ?? 0) / 65535, transfer);
+    out[index + 2] = toneMapChannel((data[index + 2] ?? 0) / 65535, transfer);
+    out[index + 3] = Math.round(((data[index + 3] ?? 0) / 65535) * 255);
+  }
+  return new ImageData(out, width, height);
+}
+
+export function toneMapRgba8(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  transfer: number,
+): ImageData {
+  const out = new Uint8ClampedArray(width * height * 4);
+  for (let i = 0; i < width * height; i++) {
+    const index = i * 4;
+    out[index] = toneMapChannel((data[index] ?? 0) / 255, transfer);
+    out[index + 1] = toneMapChannel((data[index + 1] ?? 0) / 255, transfer);
+    out[index + 2] = toneMapChannel((data[index + 2] ?? 0) / 255, transfer);
+    out[index + 3] = data[index + 3] ?? 255;
+  }
+  return new ImageData(out, width, height);
+}
+
 function sampleBilinear16(
   data: Uint16Array,
   width: number,

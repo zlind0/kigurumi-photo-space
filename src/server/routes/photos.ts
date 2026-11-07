@@ -117,6 +117,7 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
       const parts = request.parts();
       let full: UploadedPart | null = null;
       let thumb: UploadedPart | null = null;
+      let preview: UploadedPart | null = null;
       let metaRaw: string | null = null;
       for await (const part of parts) {
         if (part.type === 'field') {
@@ -127,13 +128,19 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
           }
           continue;
         }
-        if (part.fieldname !== 'full' && part.fieldname !== 'thumb') {
+        if (part.fieldname !== 'full' && part.fieldname !== 'thumb' && part.fieldname !== 'preview') {
           part.file.resume();
           continue;
         }
         if (part.fieldname === 'full' && full) throw badRequest('重复的 full 文件');
         if (part.fieldname === 'thumb' && thumb) throw badRequest('重复的 thumb 文件');
-        const limit = part.fieldname === 'full' ? config.maxFullBytes : config.maxThumbBytes;
+        if (part.fieldname === 'preview' && preview) throw badRequest('重复的 preview 文件');
+        const limit =
+          part.fieldname === 'full'
+            ? config.maxFullBytes
+            : part.fieldname === 'preview'
+              ? config.maxPreviewBytes
+              : config.maxThumbBytes;
         const temp = await createTempFile(config);
         tempPaths.push(temp.path);
         const hash = createHash('md5');
@@ -143,7 +150,13 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
             const buffer = chunk as Buffer;
             size += buffer.byteLength;
             if (size > limit) {
-              throw tooLarge(part.fieldname === 'full' ? '全图超过大小限制' : '缩略图超过大小限制');
+              throw tooLarge(
+                part.fieldname === 'full'
+                  ? '全图超过大小限制'
+                  : part.fieldname === 'preview'
+                    ? '预览图超过大小限制'
+                    : '缩略图超过大小限制',
+              );
             }
             hash.update(buffer);
             await temp.handle.write(buffer);
@@ -152,10 +165,17 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
           await temp.handle.close();
         }
         if (part.file.truncated) {
-          throw tooLarge(part.fieldname === 'full' ? '全图超过大小限制' : '缩略图超过大小限制');
+          throw tooLarge(
+            part.fieldname === 'full'
+              ? '全图超过大小限制'
+              : part.fieldname === 'preview'
+                ? '预览图超过大小限制'
+                : '缩略图超过大小限制',
+          );
         }
         const uploaded: UploadedPart = { path: temp.path, size, md5: hash.digest('hex') };
         if (part.fieldname === 'full') full = uploaded;
+        else if (part.fieldname === 'preview') preview = uploaded;
         else thumb = uploaded;
       }
       if (!full) throw badRequest('缺少 full 文件');
@@ -169,6 +189,7 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
       }
       const fullInfo = await validateAvifFile(full.path, 'full', config);
       const thumbInfo = await validateAvifFile(thumb.path, 'thumb', config);
+      const previewInfo = preview ? await validateAvifFile(preview.path, 'preview', config) : null;
       if (thumbInfo.width !== 600 || thumbInfo.height !== 600) {
         throw unprocessable('INVALID_THUMBNAIL', '缩略图必须是 600×600');
       }
@@ -180,8 +201,10 @@ export function registerPhotoRoutes(app: FastifyInstance, db: Database, config: 
         album,
         fullTmpPath: full.path,
         thumbTmpPath: thumb.path,
+        previewTmpPath: preview?.path ?? null,
         fullInfo,
         thumbInfo,
+        previewInfo,
         md5: full.md5,
         thumbMd5: thumb.md5,
         originalName,

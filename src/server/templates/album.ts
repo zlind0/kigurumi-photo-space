@@ -114,7 +114,7 @@ function photoCard(photo: PhotoDTO, index: number, eager = false): string {
   if (photo.tier === 'cover') badges.push('<span class="badge cover">封面</span>');
   const loading = eager ? 'fetchpriority="high"' : 'loading="lazy" decoding="async"';
   return `<li class="photo-item" data-photo-id="${photo.id}" data-tier="${photo.tier}" data-visibility="${photo.visibility}" data-can-delete="${photo.canDelete ? '1' : '0'}" data-can-set-tier="${photo.canSetTier ? '1' : '0'}" data-can-set-visibility="${photo.canSetVisibility ? '1' : '0'}">
-  <button class="photo-card" type="button" data-action="open-lightbox" data-photo-id="${photo.id}" data-full="${escapeHtml(photo.fullUrl)}" data-thumb="${escapeHtml(photo.thumbUrl)}" data-width="${photo.width}" data-height="${photo.height}" data-caption="${escapeHtml(photo.originalName ?? '')}" aria-label="查看照片 ${escapeHtml(photo.originalName ?? String(photo.id))}">
+  <button class="photo-card" type="button" data-action="open-lightbox" data-photo-id="${photo.id}" data-full="${escapeHtml(photo.fullUrl)}" data-preview="${escapeHtml(photo.previewUrl)}" data-thumb="${escapeHtml(photo.thumbUrl)}" data-width="${photo.width}" data-height="${photo.height}" data-caption="${escapeHtml(photo.originalName ?? '')}" aria-label="查看照片 ${escapeHtml(photo.originalName ?? String(photo.id))}">
     <img src="${escapeHtml(photo.thumbUrl)}" alt="${escapeHtml(photo.originalName ?? '照片')}" width="400" height="400" ${loading}>
     ${badges.length ? `<span class="photo-badges">${badges.join('')}</span>` : ''}
   </button>

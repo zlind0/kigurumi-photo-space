@@ -53,10 +53,10 @@ export async function buildApp(
   await app.register(multipart, {
     limits: {
       fileSize: config.maxFullBytes,
-      files: 2,
+      files: 3,
       fields: 10,
       fieldSize: config.maxJsonBytes,
-      parts: 12,
+      parts: 13,
     },
   });
 

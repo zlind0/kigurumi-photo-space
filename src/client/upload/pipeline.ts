@@ -8,9 +8,10 @@ import { encodeHdr10, encodeSdr } from './encode.js';
 import { extractExifTiff, readExifSummary, readOrientation } from './exif.js';
 import {
   makeThumbnailFromRgba16,
-  makeThumbnailFromRgba8,
   resizeRgba16,
   rgba16To10Bit,
+  toneMapRgba16,
+  toneMapRgba8,
 } from './hdr.js';
 import type { ProcessOptions, ProcessResult, Stage } from './types.js';
 
@@ -57,22 +58,32 @@ function detectHdrFromBytes(bytes: Uint8Array, format: string): { isHdr: boolean
   return { isHdr: false, transfer: null };
 }
 
-async function decodeAvifThumbnail(
+async function decodeAvifPreview(
   bytes: Uint8Array,
   isHdr: boolean,
   transfer: number | null,
   options: ProcessOptions,
 ): Promise<ImageData> {
   try {
-    const imageData = await decodeWithCanvas(new Blob([toArrayBuffer(bytes)], { type: 'image/avif' }), options.maxDimension);
-    return await makeThumbnailFromImageData(imageData);
+    return await decodeWithCanvas(
+      new Blob([toArrayBuffer(bytes)], { type: 'image/avif' }),
+      options.previewMaxDimension,
+    );
   } catch {
     const imageData = await decodeAvif(bytes);
-    if (isHdr) {
-      return makeThumbnailFromRgba8(imageData.data, imageData.width, imageData.height, transfer ?? 16);
-    }
-    return await makeThumbnailFromImageData(imageData);
+    const source = isHdr
+      ? toneMapRgba8(imageData.data, imageData.width, imageData.height, transfer ?? 16)
+      : imageData;
+    return resizeImageData(source, options.previewMaxDimension);
   }
+}
+
+async function encodePreviewFromImageData(
+  imageData: ImageData,
+  options: ProcessOptions,
+): Promise<Uint8Array> {
+  const resized = await resizeImageData(imageData, options.previewMaxDimension);
+  return encodeSdr(resized, options.previewQuality, options.speed);
 }
 
 export async function processFile(
@@ -106,6 +117,7 @@ export async function processFile(
   let matrix: number | null = null;
   let exifPreserved = false;
   let full: Uint8Array;
+  let preview: Uint8Array;
   let thumb: Uint8Array;
 
   if (format === 'avif') {
@@ -130,8 +142,11 @@ export async function processFile(
     if (!tooLarge) {
       full = bytes;
       exifPreserved = info.hasExif;
+      onProgress('encode-preview', '生成预览图');
+      const previewImage = await decodeAvifPreview(bytes, isHdr, transfer, options);
+      preview = await encodeSdr(previewImage, options.previewQuality, options.speed);
       onProgress('encode-thumb', '生成缩略图');
-      const thumbImage = await decodeAvifThumbnail(bytes, isHdr, transfer, options);
+      const thumbImage = await makeThumbnailFromImageData(previewImage);
       thumb = await encodeSdr(thumbImage, options.thumbQuality, options.speed);
     } else {
       if (isHdr) {
@@ -158,6 +173,8 @@ export async function processFile(
           warnings.push('EXIF 保留失败，已上传不含 EXIF 的版本');
         }
       }
+      onProgress('encode-preview', '生成预览图');
+      preview = await encodePreviewFromImageData(resized, options);
       onProgress('encode-thumb', '生成缩略图');
       const thumbImage = await makeThumbnailFromImageData(resized);
       thumb = await encodeSdr(thumbImage, options.thumbQuality, options.speed);
@@ -219,6 +236,18 @@ export async function processFile(
         exifTiff: tiff,
       });
       exifPreserved = Boolean(tiff);
+      onProgress('encode-preview', '生成预览图');
+      const preview16 = resizeRgba16(
+        resized.data,
+        resized.width,
+        resized.height,
+        options.previewMaxDimension,
+      );
+      preview = await encodeSdr(
+        toneMapRgba16(preview16.data, preview16.width, preview16.height, transferValue),
+        options.previewQuality,
+        options.speed,
+      );
       onProgress('encode-thumb', '生成缩略图');
       const thumbImage = makeThumbnailFromRgba16(
         resized.data,
@@ -249,6 +278,8 @@ export async function processFile(
           warnings.push('EXIF 保留失败，已上传不含 EXIF 的版本');
         }
       }
+      onProgress('encode-preview', '生成预览图');
+      preview = await encodePreviewFromImageData(resized, options);
       onProgress('encode-thumb', '生成缩略图');
       const thumbImage = await makeThumbnailFromImageData(resized);
       thumb = await encodeSdr(thumbImage, options.thumbQuality, options.speed);
@@ -273,6 +304,8 @@ export async function processFile(
         warnings.push('EXIF 保留失败，已上传不含 EXIF 的版本');
       }
     }
+    onProgress('encode-preview', '生成预览图');
+    preview = await encodePreviewFromImageData(resized, options);
     onProgress('encode-thumb', '生成缩略图');
     const thumbImage = await makeThumbnailFromImageData(resized);
     thumb = await encodeSdr(thumbImage, options.thumbQuality, options.speed);
@@ -305,6 +338,7 @@ export async function processFile(
     type: 'result',
     id,
     full: toArrayBuffer(full),
+    preview: toArrayBuffer(preview),
     thumb: toArrayBuffer(thumb),
     meta,
     warnings,

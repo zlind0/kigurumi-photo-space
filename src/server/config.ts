@@ -16,7 +16,9 @@ export interface Config {
   sessionMaxMs: number;
   maxFullBytes: number;
   maxThumbBytes: number;
+  maxPreviewBytes: number;
   maxImageDimension: number;
+  previewMaxDimension: number;
   maxImagePixels: number;
   maxUploadFiles: number;
   uploadConcurrency: number;
@@ -86,7 +88,9 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     sessionMaxMs: envInt('SESSION_MAX_DAYS', 30) * 86_400_000,
     maxFullBytes: envInt('MAX_FULL_BYTES', 50 * 1024 * 1024),
     maxThumbBytes: envInt('MAX_THUMB_BYTES', 2 * 1024 * 1024),
+    maxPreviewBytes: envInt('MAX_PREVIEW_BYTES', 8 * 1024 * 1024),
     maxImageDimension: envInt('MAX_IMAGE_DIMENSION', 12000),
+    previewMaxDimension: envInt('PREVIEW_MAX_DIMENSION', 3000),
     maxImagePixels: envInt('MAX_IMAGE_PIXELS', 80_000_000),
     maxUploadFiles: envInt('MAX_UPLOAD_FILES', 50),
     uploadConcurrency: envInt('UPLOAD_CONCURRENCY', 2),

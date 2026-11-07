@@ -15,7 +15,7 @@ scope.addEventListener('message', (event) => {
       const result = await processFile(id, file, options, (stage, message) => {
         scope.postMessage({ type: 'progress', id, stage, message } satisfies WorkerMessage);
       });
-      scope.postMessage(result, [result.full, result.thumb]);
+      scope.postMessage(result, [result.full, result.preview, result.thumb]);
     } catch (error) {
       scope.postMessage({
         type: 'error',

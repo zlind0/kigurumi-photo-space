@@ -303,7 +303,7 @@ export function registerAdminRoutes(app: FastifyInstance, db: Database, config: 
     const users = db.get<{ c: number }>('SELECT COUNT(*) AS c FROM users')?.c ?? 0;
     const totalBytes =
       db.get<{ total: number }>(
-        'SELECT COALESCE(SUM(size_bytes + thumb_size_bytes), 0) AS total FROM photos WHERE deleted_at IS NULL',
+        'SELECT COALESCE(SUM(size_bytes + thumb_size_bytes + preview_size_bytes), 0) AS total FROM photos WHERE deleted_at IS NULL',
       )?.total ?? 0;
     const disk = await diskInfo(config);
     reply.header('cache-control', 'private, no-store');

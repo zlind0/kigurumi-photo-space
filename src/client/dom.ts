@@ -61,6 +61,7 @@ export function photoCard(photo: PhotoDTO): HTMLLIElement {
       'data-action': 'open-lightbox',
       'data-photo-id': photo.id,
       'data-full': photo.fullUrl,
+      'data-preview': photo.previewUrl,
       'data-thumb': photo.thumbUrl,
       'data-width': photo.width,
       'data-height': photo.height,

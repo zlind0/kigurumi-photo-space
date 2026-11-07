@@ -7,7 +7,7 @@
 ## 功能
 
 - 公众无需密码浏览公开照片；查看者登录后可看私密相册/照片。
-- 上传者在浏览器内把 JPEG / PNG / WebP / HEIC / AVIF 转成 AVIF，并生成 600×600 缩略图。
+- 上传者在浏览器内把 JPEG / PNG / WebP / HEIC / AVIF 转成 AVIF，并生成 600×600 缩略图和最长边 3000px、质量 50 的预览图。
 - **HDR 保留**：HDR 源（10-bit HEIC、HDR AVIF）会转成 10-bit BT.2020 PQ/HLG AVIF，而不是压成 SDR。
 - **文件夹上传**：可以一次选择整个文件夹，或把文件夹拖进上传区，递归收集其中的照片。
 - 相册封面 / 精选 / 其他三档；公开 / 私密可见度。
@@ -24,7 +24,7 @@
 | --- | --- |
 | 服务端 | Node.js 24 + Fastify 5 + 内置 `node:sqlite` |
 | 前端 | TypeScript + Vite，无 UI 框架，服务端渲染 HTML + 原生 JS |
-| 图片 | 只存 AVIF；全图 + 600×600 缩略图 |
+| 图片 | 只存 AVIF；全图 + 600×600 缩略图 + 最长边 3000px 预览图 |
 | 转码 | Web Worker + libavif wasm（8-bit）+ 自编译 libaom wasm（10-bit HDR） |
 | HEIC | libheif-js wasm |
 | EXIF | exifr 读取 + 自研 AVIF 容器重写注入 |
@@ -79,7 +79,7 @@ Nginx 反向代理示例见 [deploy/nginx/kig-photo-space.conf](deploy/nginx/kig
 
 | 源 | 处理 |
 | --- | --- |
-| AVIF（含 HDR） | **全图原样上传**，不重新编码，HDR/EXIF/ICC/irot/imir 全部保留；缩略图由浏览器解码后生成 SDR 600×600 |
+| AVIF（含 HDR） | **全图原样上传**，不重新编码，HDR/EXIF/ICC/irot/imir 全部保留；缩略图和预览图由浏览器解码后生成 SDR AVIF |
 | HEIC 10-bit + PQ/HLG | libheif 解码为 16-bit RGBA → 10-bit BT.2020 PQ/HLG AVIF（自编译 libaom wasm） |
 | HEIC 10-bit SDR | 保留 10-bit，编码为 10-bit SDR AVIF |
 | HEIC 8-bit | 8-bit 4:2:0 AVIF |
@@ -115,7 +115,7 @@ data/
     hidden/               # 私密照片
 ```
 
-照片文件名是内容 MD5：`<md5>.avif` / `<md5>.thumb.avif`。同一相册内去重；跨相册优先硬链接复用。
+照片文件名是内容 MD5：`<md5>.avif` / `<md5>.thumb.avif` / `<md5>.preview.avif`。同一相册内去重；跨相册优先硬链接复用。灯箱加载预览图，下载时仍取原图。
 
 ## 常用脚本
 

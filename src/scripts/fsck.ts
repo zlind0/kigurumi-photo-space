@@ -2,7 +2,7 @@ import { readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { loadConfig } from '../server/config.js';
 import { openDatabase } from '../server/db/index.js';
-import { albumPath, coverPath, coverThumbPath, fullPath, thumbPath } from '../server/services/storage.js';
+import { albumPath, coverPath, coverThumbPath, fullPath, previewPath, thumbPath } from '../server/services/storage.js';
 import type { AlbumRow, PhotoRow } from '../server/services/albums.js';
 
 async function main(): Promise<void> {
@@ -23,7 +23,7 @@ async function main(): Promise<void> {
       tier: photo.tier,
       visibility: photo.visibility,
     };
-    for (const path of [fullPath(config, ref), thumbPath(config, ref)]) {
+    for (const path of [fullPath(config, ref), thumbPath(config, ref), previewPath(config, ref)]) {
       expected.add(path);
       try {
         await stat(path);
@@ -49,7 +49,7 @@ async function main(): Promise<void> {
         continue;
       }
       for (const entry of entries) {
-        if (!/^[a-f0-9]{32}(\.thumb)?\.avif$/.test(entry)) continue;
+        if (!/^[a-f0-9]{32}(\.thumb|\.preview)?\.avif$/.test(entry)) continue;
         const path = join(dir, entry);
         if (!expected.has(path)) orphans.push(path);
       }

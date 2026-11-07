@@ -5,6 +5,7 @@ import { closeDialog, setupBackdropClose } from './ui.js';
 interface LightboxItem {
   id: number;
   full: string;
+  preview: string;
   thumb: string;
   caption: string;
   width: number;
@@ -118,16 +119,17 @@ export function setupLightbox(): void {
 
   const current = (): LightboxItem | null => items[index] ?? null;
 
-  // 当前照片显示后，用低优先级提前把下一张全图放进浏览器缓存。
+  // 当前照片显示后，用低优先级提前把下一张预览图放进浏览器缓存。
   // 这样用户切到下一张时通常可以直接命中缓存，弱网下也不会和当前照片抢带宽。
   const preload = (item: LightboxItem | undefined): void => {
-    if (!item || !item.full || preloaded.has(item.full)) return;
-    preloaded.add(item.full);
+    const source = item?.preview || item?.full;
+    if (!source || preloaded.has(source)) return;
+    preloaded.add(source);
     const preloadImage = new Image();
     preloadImage.decoding = 'async';
     preloadImage.fetchPriority = 'low';
-    preloadImage.onerror = () => preloaded.delete(item.full);
-    preloadImage.src = item.full;
+    preloadImage.onerror = () => preloaded.delete(source);
+    preloadImage.src = source;
   };
 
   const beginLoading = (): void => {
@@ -243,6 +245,7 @@ export function setupLightbox(): void {
     Array.from(document.querySelectorAll<HTMLElement>('[data-action="open-lightbox"]')).map((node) => ({
       id: Number(node.dataset.photoId ?? 0),
       full: node.dataset.full ?? '',
+      preview: node.dataset.preview ?? '',
       thumb: node.dataset.thumb ?? '',
       caption: node.dataset.caption ?? '',
       width: Number(node.dataset.width ?? 0),
@@ -264,21 +267,30 @@ export function setupLightbox(): void {
       placeholder.classList.toggle('is-visible', Boolean(item.thumb));
     }
     beginLoading();
-    image.src = item.full;
-    image.decode().then(
-      () => {
-        if (token !== loadToken) return;
-        endLoading();
-        image.classList.add('is-loaded');
-        preload(items[(index + 1) % items.length]);
-      },
-      () => {
-        if (token !== loadToken) return;
-        endLoading();
-        toast('图片加载失败，请重试', 'error');
-        preload(items[(index + 1) % items.length]);
-      },
-    );
+    const source = item.preview || item.full;
+    image.src = source;
+    const decode = (): Promise<void> => image.decode();
+    decode()
+      .catch(() => {
+        if (source === item.full) throw new Error('图片加载失败');
+        // 预览图缺失时回退到原图，保证旧照片仍然可以查看。
+        image.src = item.full;
+        return decode();
+      })
+      .then(
+        () => {
+          if (token !== loadToken) return;
+          endLoading();
+          image.classList.add('is-loaded');
+          preload(items[(index + 1) % items.length]);
+        },
+        () => {
+          if (token !== loadToken) return;
+          endLoading();
+          toast('图片加载失败，请重试', 'error');
+          preload(items[(index + 1) % items.length]);
+        },
+      );
     if (infoWrap?.matches(':hover, :focus-within, .is-open')) void loadInfo();
   };
 

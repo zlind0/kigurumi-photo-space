@@ -561,7 +561,7 @@ function isHdrColor(color: NclxColor | null, bitDepth: number, clli: ContentLigh
 }
 
 export interface AvifValidationOptions {
-  kind: 'full' | 'thumb';
+  kind: 'full' | 'thumb' | 'preview';
   maxDimension: number;
   maxPixels: number;
   maxBytes: number;

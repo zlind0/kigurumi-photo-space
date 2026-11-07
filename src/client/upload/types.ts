@@ -7,6 +7,7 @@ export type Stage =
   | 'decode'
   | 'resize'
   | 'encode-full'
+  | 'encode-preview'
   | 'encode-thumb'
   | 'metadata'
   | 'done';
@@ -15,6 +16,8 @@ export interface ProcessOptions {
   maxDimension: number;
   maxPixels: number;
   fullQuality: number;
+  previewQuality: number;
+  previewMaxDimension: number;
   thumbQuality: number;
   speed: number;
 }
@@ -36,6 +39,7 @@ export interface ResultMessage {
   type: 'result';
   id: number;
   full: ArrayBuffer;
+  preview: ArrayBuffer;
   thumb: ArrayBuffer;
   meta: UploadMeta;
   warnings: string[];

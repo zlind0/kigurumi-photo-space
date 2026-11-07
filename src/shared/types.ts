@@ -14,6 +14,7 @@ export interface PhotoDTO {
   createdAt: number;
   originalName: string | null;
   thumbUrl: string;
+  previewUrl: string;
   fullUrl: string;
   bitDepth: number;
   isHdr: boolean;
