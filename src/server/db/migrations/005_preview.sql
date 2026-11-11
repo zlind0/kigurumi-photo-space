@@ -1,0 +1,1 @@
+ALTER TABLE photos ADD COLUMN preview_size_bytes INTEGER NOT NULL DEFAULT 0;
