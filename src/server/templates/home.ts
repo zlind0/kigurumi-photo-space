@@ -77,8 +77,14 @@ function albumCard(album: AlbumDTO, index: number, role: Role): string {
 </li>`;
 }
 
+/** 按色相环从红、橙、黄、绿、蓝、靛到紫排列，同色相时保持创建顺序。 */
+function sortPeopleByHue(people: PersonDTO[]): PersonDTO[] {
+  return [...people].sort((a, b) => a.hue - b.hue || a.id - b.id);
+}
+
 export function renderHomePage(options: HomePageOptions): string {
   const canCreate = options.role === 'uploader' || options.role === 'admin';
+  const people = sortPeopleByHue(options.people);
   const cards = options.albums.map((album, index) => albumCard(album, index, options.role)).join('');
   const newCard = canCreate
     ? `<li class="album-item">
@@ -101,7 +107,7 @@ export function renderHomePage(options: HomePageOptions): string {
   ${canCreate ? '<button class="button primary" type="button" data-action="new-album">新建第一个相册</button>' : ''}
 </div>`
       : '';
-  const body = `${peopleStrip(options.people)}
+  const body = `${peopleStrip(people)}
 ${empty}
 <ul class="album-grid" id="album-grid">${cards}${newCard}</ul>
 <div class="empty-state people-empty" id="people-empty" hidden>
